@@ -2,7 +2,6 @@
 -- All prices stored in cents (integers). Never use floats for money.
 
 -- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ============================================
 -- CORE BUSINESS TABLES
@@ -10,7 +9,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Businesses (SaaS-ready: everything has business_id)
 CREATE TABLE businesses (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   phone TEXT,
   email TEXT,
@@ -20,7 +19,7 @@ CREATE TABLE businesses (
 
 -- Business Users (admin roles)
 CREATE TABLE business_users (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'dispatcher', 'accounting', 'driver', 'read_only')),
@@ -30,7 +29,7 @@ CREATE TABLE business_users (
 
 -- Business Settings (configurable per business)
 CREATE TABLE business_settings (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE UNIQUE,
   settings JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -43,7 +42,7 @@ CREATE TABLE business_settings (
 
 -- Customers
 CREATE TABLE customers (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   name TEXT NOT NULL,
@@ -55,7 +54,7 @@ CREATE TABLE customers (
 
 -- Addresses
 CREATE TABLE addresses (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
   full_address TEXT NOT NULL,
@@ -75,7 +74,7 @@ CREATE TABLE addresses (
 
 -- Service Areas (GeoJSON polygons)
 CREATE TABLE service_areas (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   polygon JSONB NOT NULL, -- GeoJSON polygon
@@ -85,7 +84,7 @@ CREATE TABLE service_areas (
 
 -- Pricing Rules
 CREATE TABLE pricing_rules (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   waste_type TEXT NOT NULL CHECK (waste_type IN ('construction_debris', 'household_trash')),
   dumpster_size INT NOT NULL CHECK (dumpster_size IN (10, 15, 20, 30, 40)),
@@ -112,7 +111,7 @@ CREATE UNIQUE INDEX pricing_rules_unique_active
 
 -- Quotes
 CREATE TABLE quotes (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   address_id UUID NOT NULL REFERENCES addresses(id) ON DELETE CASCADE,
   customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
@@ -128,7 +127,7 @@ CREATE TABLE quotes (
 
 -- Quote Line Items
 CREATE TABLE quote_line_items (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   quote_id UUID NOT NULL REFERENCES quotes(id) ON DELETE CASCADE,
   label TEXT NOT NULL,
   amount INT NOT NULL, -- cents (can be negative for discounts)
@@ -139,7 +138,7 @@ CREATE TABLE quote_line_items (
 
 -- Carts
 CREATE TABLE carts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'abandoned', 'converted')),
@@ -148,7 +147,7 @@ CREATE TABLE carts (
 
 -- Cart Items
 CREATE TABLE cart_items (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   cart_id UUID NOT NULL REFERENCES carts(id) ON DELETE CASCADE,
   quote_id UUID NOT NULL REFERENCES quotes(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -161,7 +160,7 @@ CREATE TABLE cart_items (
 
 -- Booking Requests (pending admin approval)
 CREATE TABLE booking_requests (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
   quote_id UUID NOT NULL REFERENCES quotes(id) ON DELETE CASCADE,
@@ -172,7 +171,7 @@ CREATE TABLE booking_requests (
 
 -- Dumpsters (inventory)
 CREATE TABLE dumpsters (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   unit_number TEXT NOT NULL,
   size INT NOT NULL CHECK (size IN (10, 15, 20, 30, 40)),
@@ -185,7 +184,7 @@ CREATE TABLE dumpsters (
 
 -- Bookings (confirmed)
 CREATE TABLE bookings (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   booking_request_id UUID REFERENCES booking_requests(id) ON DELETE SET NULL,
   customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
@@ -206,7 +205,7 @@ CREATE TABLE bookings (
 
 -- Invoices
 CREATE TABLE invoices (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
   booking_id UUID REFERENCES bookings(id) ON DELETE SET NULL,
@@ -223,7 +222,7 @@ CREATE TABLE invoices (
 
 -- Invoice Line Items
 CREATE TABLE invoice_line_items (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
   label TEXT NOT NULL,
   quantity INT NOT NULL DEFAULT 1,
@@ -235,7 +234,7 @@ CREATE TABLE invoice_line_items (
 
 -- Stripe Customers
 CREATE TABLE stripe_customers (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
   stripe_customer_id TEXT NOT NULL,
@@ -246,7 +245,7 @@ CREATE TABLE stripe_customers (
 
 -- Payments
 CREATE TABLE payments (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
   stripe_payment_intent_id TEXT NOT NULL,
   amount INT NOT NULL, -- cents
@@ -261,7 +260,7 @@ CREATE TABLE payments (
 
 -- Dump Tickets (for tonnage tracking)
 CREATE TABLE dump_tickets (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
   facility TEXT NOT NULL,
   ticket_number TEXT NOT NULL,
@@ -273,7 +272,7 @@ CREATE TABLE dump_tickets (
 
 -- Adjustments (overage charges)
 CREATE TABLE adjustments (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   booking_id UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
   customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
@@ -290,7 +289,7 @@ CREATE TABLE adjustments (
 -- ============================================
 
 CREATE TABLE events_audit (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id UUID REFERENCES businesses(id) ON DELETE SET NULL,
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   event_type TEXT NOT NULL,
