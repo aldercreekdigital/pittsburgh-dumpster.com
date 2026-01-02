@@ -1,582 +1,1344 @@
-# McCrackan Roll-Off Services Website Build Specification
+# CLAUDE.md — Pittsburgh Dumpster Booking + Admin (Next.js + Supabase + Stripe)
 
-## 🗑️ Project Overview
+This document is the implementation playbook. Follow it in order. Each step must be implementable and testable before moving on.
 
-**Site Name**: McCrackan Roll-Off Services  
-**Domain**: pittsburgh-dumpster.com (development: localhost:3000)  
-**Business Type**: Dumpster & Roll-Off Container Rental  
-**Service Area**: Western Pennsylvania, parts of West Virginia and Ohio  
-**Parent Brand**: McCrackan Enterprises (sibling to Brandon's Lawn & Landscape)
 
-**Design Directive**: Dark, professional color scheme based on provided logo
-**Technology Stack**: Next.js 14 (App Router), Tailwind CSS, TypeScript
 
-## 🎨 Design System & Colors
+## Core Decisions (locked)
+1) Customer pays full amount upfront at checkout (no delayed payment).
+2) Pricing snapshots must be persisted on quote/booking/invoice to prevent future config changes from affecting historical transactions.
+3) Separate BookingRequest (pending approval) from Booking (confirmed) is required.
+4) Stripe Customer ID + saved payment method for off-session overage charges is required.
 
-### Color Palette (Derived from Logo)
-```css
-/* Primary Colors - Dark, professional, industrial feel */
---primary-dark-green: #0A291A;     /* Main brand green from logo */
---primary-green: #1C3B2A;          /* Slightly lighter for backgrounds */
---accent-green: #2E7D32;           /* Brandon's green for connection */
---accent-orange: #E65100;          /* Safety/CTA orange (contrast) */
---accent-yellow: #FFB300;          /* Warning/attention yellow */
+UI Examples from waste managements booking system can be found in /docs/screenshots for reference.
+---
 
-/* Neutral Colors - Industrial & Clean */
---white: #FFFFFF;
---off-white: #F8F9FA;
---light-gray: #E9ECEF;
---medium-gray: #6C757D;
---dark-gray: #343A40;
---steel-gray: #495057;            /* Industrial feel */
---black: #212529;
+# 0. Technical stack + repo structure
 
-/* Utility Colors */
---safety-red: #DC3545;            /* For important warnings */
---info-blue: #0D6EFD;             /* Trust/contact elements */
-```
+## Stack
+- Next.js (App Router)
+- Supabase (Postgres + Auth + Storage + RLS)
+- Stripe (Checkout + webhooks + off-session charges for overages)
+- Map provider: start with Mapbox or Google Maps (choose one), but isolate behind a component.
 
-### Typography
-- **Headings**: "Roboto Condensed", "Segoe UI", system-ui, sans-serif (bold, industrial feel)
-- **Body**: "Roboto", "Helvetica Neue", Arial, sans-serif (clean, readable)
-- **Font Weights**: Heavy for CTAs (700), medium for subheads (600), regular for body (400)
-
-## 🏗️ Project Structure
-
-```
-mccrackan-roll-off/
-├── app/
-│   ├── layout.tsx
-│   ├── page.tsx
-│   ├── globals.css
-│   ├── dumpster-sizes/
-│   │   └── page.tsx
-│   ├── how-it-works/
-│   │   └── page.tsx
-│   ├── service-area/
-│   │   └── page.tsx
-│   ├── residential/
-│   │   └── page.tsx
-│   ├── commercial/
-│   │   └── page.tsx
-│   ├── construction/
-│   │   └── page.tsx
-│   ├── faq/
-│   │   └── page.tsx
-│   ├── request-quote/
-│   │   └── page.tsx
-│   └── contact/
-│       └── page.tsx
-├── components/
-│   ├── Header/
-│   │   ├── Header.tsx
-│   │   └── Navigation.tsx
-│   ├── Footer/
-│   │   └── Footer.tsx
-│   ├── Hero/
-│   │   └── Hero.tsx
-│   ├── DumpsterCard/
-│   │   └── DumpsterCard.tsx
-│   ├── ServiceAreaMap/
-│   │   └── ServiceAreaMap.tsx
-│   ├── QuoteForm/
-│   │   └── QuoteForm.tsx
-│   ├── CTABanner/
-│   │   └── CTABanner.tsx
-│   └── Testimonials/
-│       └── Testimonials.tsx
-├── lib/
-│   ├── constants.ts
-│   └── utils.ts
-├── public/
-│   ├── images/
-│   │   ├── hero/
-│   │   ├── dumpsters/
-│   │   ├── projects/
-│   │   └── logo/
-│   └── favicon.ico
-├── tailwind.config.js
-├── next.config.js
-└── package.json
-```
-
-## 📱 Core Pages & Content
-
-### 1. Homepage (`app/page.tsx`)
-**Goal**: Immediate clarity on services, pricing, and quick quote conversion
-
-**Sections**:
-1. **Hero Banner**: Clean industrial image with dumpster on job site
-   - Headline: "Dumpster Rental Services for Western PA, WV & OH"
-   - Subheadline: "Fast Delivery, Competitive Pricing, Reliable Service"
-   - Primary CTA: "Get Instant Quote" (links to quote form)
-   - Secondary CTA: "View Dumpster Sizes"
-   - Trust indicators: "24/7 Online Booking", "Same-Day Delivery Available"
-
-2. **Service Area Highlights**
-   - Western Pennsylvania (featured)
-   - Northern West Virginia
-   - Eastern Ohio
-   - "Servicing 50+ Counties"
-
-3. **Popular Dumpster Sizes** (3-4 cards)
-   - 10 Yard: "Small Renovations, Garage Cleanouts"
-   - 20 Yard: "Kitchen Remodels, Roofing Projects"
-   - 30 Yard: "New Construction, Large Demolition"
-   - 40 Yard: "Major Construction, Commercial Projects"
-
-4. **Use Case Grid** (Residential, Commercial, Construction)
-   - Icons and brief descriptions
-   - Links to dedicated pages
-
-5. **How It Works** (Simple 3-step process)
-   - 1. Choose Size & Schedule
-   - 2. We Deliver & Place
-   - 3. You Fill, We Haul Away
-
-6. **Trust Indicators**
-   - Licensed & Insured
-   - No Hidden Fees
-   - Environmentally Responsible Disposal
-   - Family-Owned & Operated
-
-### 2. Dumpster Sizes & Pricing (`app/dumpster-sizes/page.tsx`)
-**Critical Conversion Page**:
-
-| Size | Dimensions | Ideal For | Price Range | CTA |
-|------|------------|-----------|-------------|-----|
-| 10 yd | 12'L x 8'W x 4'H | Small remodels, garage cleanout | $XXX-XXX | Select |
-| 20 yd | 22'L x 8'W x 4'H | Kitchen/bath remodel, roofing | $XXX-XXX | Select |
-| 30 yd | 22'L x 8'W x 6'H | New construction, large demolition | $XXX-XXX | Select |
-| 40 yd | 22'L x 8'W x 8'H | Major construction, commercial | $XXX-XXX | Select |
-
-**Features**:
-- Interactive size comparison
-- "What Fits" visual guides
-- Rental period information (7, 10, 14-day options)
-- Prohibited items list (expandable)
-
-### 3. Service Area (`app/service-area/page.tsx`)
-**Local SEO Power Page**:
-- Interactive map showing coverage
-- County/Region breakdown:
-  **Western PA**: Allegheny, Washington, Beaver, Butler, etc.
-  **WV**: Ohio, Marshall, Brooke, Hancock counties
-  **OH**: Jefferson, Columbiana, Mahoning counties
-- "We Serve These Cities" list with 50+ locations
-- "Not Sure If We Serve You?" form
-
-### 4. Project Type Pages
-- **Residential** (`/residential`): Home renovations, cleanouts, landscaping debris
-- **Commercial** (`/commercial`): Business cleanouts, office renovations
-- **Construction** (`/construction`): New builds, demolition, contractor services
-
-### 5. How It Works / FAQ (`app/how-it-works/`, `/faq/`)
-- Simple 3-4 step process with icons
-- Comprehensive FAQ:
-  - Pricing & Payment
-  - Placement & Access
-  - What Can/Cannot Go in Dumpster
-  - Permits & Regulations
-  - Weight Limits & Overages
-
-### 6. Request Quote (`app/request-quote/page.tsx`)
-**Optimized Conversion Form**:
-- Dumpster size selection
-- Project type dropdown
-- Delivery address with auto-suggest
-- Desired dates
-- Contact info
-- Project description (optional)
-- "Get Instant Price Estimate" button
-
-## 🔧 Technical Implementation
-
-### Tailwind Configuration (`tailwind.config.js`)
-```javascript
-/** @type {import('tailwindcss').Config} */
-module.exports = {
-  content: [
-    './pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './components/**/*.{js,ts,jsx,tsx,mdx}',
-    './app/**/*.{js,ts,jsx,tsx,mdx}',
-  ],
-  theme: {
-    extend: {
-      colors: {
-        primary: {
-          'dark-green': '#0A291A',
-          green: '#1C3B2A',
-          light: '#2E7D32', // Brandon's green for connection
-        },
-        accent: {
-          orange: '#E65100',
-          yellow: '#FFB300',
-          blue: '#0D6EFD',
-          red: '#DC3545',
-        },
-        industrial: {
-          gray: '#495057',
-          steel: '#6C757D',
-        }
-      },
-      fontFamily: {
-        heading: ['Roboto Condensed', 'Segoe UI', 'sans-serif'],
-        body: ['Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
-      },
-      backgroundImage: {
-        'gradient-industrial': 'linear-gradient(135deg, #0A291A 0%, #1C3B2A 100%)',
-        'pattern-dots': 'radial-gradient(#2E7D32 1px, transparent 1px)',
-      }
-    },
-  },
-  plugins: [],
-}
-```
-
-### Global Styles (`app/globals.css`)
-```css
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;600;700&family=Roboto:wght@300;400;500;700&display=swap');
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@layer base {
-  html {
-    scroll-behavior: smooth;
-  }
-  
-  body {
-    @apply font-body text-gray-800 bg-off-white;
-  }
-  
-  h1, h2, h3, h4 {
-    @apply font-heading font-bold text-primary-dark-green;
-  }
-  
-  h1 {
-    @apply text-4xl md:text-5xl lg:text-6xl;
-  }
-  
-  h2 {
-    @apply text-3xl md:text-4xl;
-  }
-  
-  h3 {
-    @apply text-2xl md:text-3xl;
-  }
-}
-
-@layer components {
-  .btn-primary {
-    @apply bg-accent-orange text-white font-bold py-3 px-8 rounded-lg 
-           hover:bg-orange-700 transition duration-300 shadow-lg 
-           hover:shadow-xl transform hover:-translate-y-1 
-           border-2 border-orange-600;
-  }
-  
-  .btn-secondary {
-    @apply bg-primary-dark-green text-white font-bold py-3 px-8 rounded-lg 
-           hover:bg-black transition duration-300 border-2 border-primary-green;
-  }
-  
-  .card-industrial {
-    @apply bg-white rounded-xl shadow-md border border-industrial-gray 
-           hover:shadow-lg transition duration-300;
-  }
-  
-  .section-padding {
-    @apply py-12 md:py-16 lg:py-20 px-4 sm:px-6 lg:px-8;
-  }
-  
-  .container-wide {
-    @apply max-w-7xl mx-auto;
-  }
-  
-  .badge {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-bold;
-  }
-  
-  .badge-safety {
-    @apply bg-accent-red/10 text-accent-red border border-accent-red/20;
-  }
-  
-  .badge-popular {
-    @apply bg-accent-yellow/10 text-amber-800 border border-amber-300;
-  }
-}
-```
-
-### Root Layout (`app/layout.tsx`)
-```tsx
-import type { Metadata } from 'next'
-import { Roboto, Roboto_Condensed } from 'next/font/google'
-import './globals.css'
-import Header from '@/components/Header/Header'
-import Footer from '@/components/Footer/Footer'
-
-const roboto = Roboto({ 
-  weight: ['300', '400', '500', '700'],
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-roboto',
-})
-
-const robotoCondensed = Roboto_Condensed({
-  weight: ['400', '600', '700'],
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-roboto-condensed',
-})
-
-export const metadata: Metadata = {
-  title: 'McCrackan Roll-Off Services | Dumpster Rental in Western PA, WV & OH',
-  description: 'Fast, reliable dumpster rental services serving Western Pennsylvania, West Virginia, and Ohio. Same-day delivery available.',
-  keywords: ['dumpster rental', 'roll off container', 'Pittsburgh', 'Western PA', 'WV', 'Ohio', 'construction dumpster'],
-  openGraph: {
-    type: 'website',
-    locale: 'en_US',
-    url: 'https://pittsburgh-dumpster.com',
-    title: 'McCrackan Roll-Off Services',
-    description: 'Dumpster Rental Services for Western PA, WV & OH',
-  },
-}
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  return (
-    <html lang="en" className={`${roboto.variable} ${robotoCondensed.variable}`}>
-      <head>
-        <link rel="icon" href="/favicon.ico" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        {/* Local Business Schema */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "LocalBusiness",
-              "name": "McCrackan Roll-Off Services",
-              "image": "https://pittsburgh-dumpster.com/logo.png",
-              "@id": "https://pittsburgh-dumpster.com",
-              "url": "https://pittsburgh-dumpster.com",
-              "telephone": "+1-XXX-XXX-XXXX",
-              "address": {
-                "@type": "PostalAddress",
-                "streetAddress": "1555 Oakdale Road",
-                "addressLocality": "Oakdale",
-                "addressRegion": "PA",
-                "postalCode": "15071",
-                "addressCountry": "US"
-              },
-              "geo": {
-                "@type": "GeoCoordinates",
-                "latitude": 40.3985,
-                "longitude": -80.1848
-              },
-              "openingHoursSpecification": {
-                "@type": "OpeningHoursSpecification",
-                "dayOfWeek": [
-                  "Monday",
-                  "Tuesday",
-                  "Wednesday",
-                  "Thursday",
-                  "Friday",
-                  "Saturday"
-                ],
-                "opens": "07:00",
-                "closes": "19:00"
-              },
-              "priceRange": "$$",
-              "serviceArea": {
-                "@type": "State",
-                "name": ["PA", "WV", "OH"]
-              }
-            })
-          }}
-        />
-      </head>
-      <body className={`${roboto.className} bg-gradient-to-b from-white to-gray-50`}>
-        <Header />
-        <main className="min-h-screen">
-          {children}
-        </main>
-        <Footer />
-      </body>
-    </html>
-  )
-}
-```
-
-## 📊 SEO & Local Optimization
-
-### Critical Local SEO Elements:
-1. **Service Area Pages**: Create pages for major cities
-   - `/dumpster-rental-pittsburgh`
-   - `/dumpster-rental-wheeling-wv`
-   - `/dumpster-rental-youngstown-oh`
-
-2. **Location-Specific Content**:
-   - "Dumpster Rental Pittsburgh PA"
-   - "Roll Off Containers Western Pennsylvania"
-   - "Same Day Dumpster Delivery [City Name]"
-
-3. **GMB Optimization**:
-   - Primary category: "Dumpster Rental Service"
-   - Secondary: "Waste Management Service", "Recycling Center"
-   - Service area set to 50-mile radius from Oakdale
-   - Photos of dumpsters on job sites
-
-### On-Page SEO Strategy:
-- **Title Tags**: Include city + service + "dumpster rental"
-- **Meta Descriptions**: Include primary service area
-- **Header Structure**: Location keywords in H2/H3
-- **Local Citations**: NAP consistency across directories
-
-## 📱 Key Components
-
-### DumpsterCard Component:
-```tsx
-interface DumpsterCardProps {
-  size: string;
-  dimensions: string;
-  description: string;
-  price: string;
-  popular?: boolean;
-  features: string[];
-}
-
-const DumpsterCard: React.FC<DumpsterCardProps> = ({ 
-  size, dimensions, description, price, popular, features 
-}) => (
-  <div className="card-industrial p-6 relative">
-    {popular && (
-      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-        <span className="badge badge-popular">MOST POPULAR</span>
-      </div>
-    )}
-    <div className="text-center mb-4">
-      <h3 className="text-3xl font-bold text-primary-dark-green">{size}</h3>
-      <p className="text-industrial-gray text-sm">{dimensions}</p>
-    </div>
-    <p className="text-gray-600 mb-4">{description}</p>
-    <div className="mb-6">
-      <div className="text-2xl font-bold text-accent-orange mb-2">{price}</div>
-      <p className="text-sm text-gray-500">+ taxes & fees</p>
-    </div>
-    <ul className="space-y-2 mb-6">
-      {features.map((feature, index) => (
-        <li key={index} className="flex items-center">
-          <svg className="w-5 h-5 text-primary-green mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-          </svg>
-          <span>{feature}</span>
-        </li>
-      ))}
-    </ul>
-    <button className="btn-primary w-full">Select This Size</button>
-  </div>
-);
-```
-
-### ServiceAreaMap Component:
-```tsx
-const ServiceAreaMap = () => (
-  <div className="bg-white rounded-xl shadow-lg p-6">
-    <h3 className="text-2xl font-bold mb-4">Our Service Area</h3>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div className="space-y-2">
-        <h4 className="font-bold text-primary-dark-green">Western Pennsylvania</h4>
-        <ul className="text-gray-600">
-          <li>Allegheny County</li>
-          <li>Washington County</li>
-          <li>Beaver County</li>
-          <li>Butler County</li>
-          <li>Lawrence County</li>
-        </ul>
-      </div>
-      <div className="space-y-2">
-        <h4 className="font-bold text-primary-dark-green">West Virginia</h4>
-        <ul className="text-gray-600">
-          <li>Ohio County</li>
-          <li>Marshall County</li>
-          <li>Brooke County</li>
-          <li>Hancock County</li>
-        </ul>
-      </div>
-      <div className="space-y-2">
-        <h4 className="font-bold text-primary-dark-green">Ohio</h4>
-        <ul className="text-gray-600">
-          <li>Jefferson County</li>
-          <li>Columbiana County</li>
-          <li>Mahoning County</li>
-        </ul>
-      </div>
-    </div>
-    <div className="mt-6 p-4 bg-primary-dark-green/5 rounded-lg">
-      <p className="text-sm text-gray-700">
-        <strong>Not sure if we serve your area?</strong> We cover 50+ counties across three states. 
-        Call us at <a href="tel:+1-XXX-XXX-XXXX" className="text-accent-orange font-bold">XXX-XXX-XXXX</a> 
-        to confirm service availability.
-      </p>
-    </div>
-  </div>
-);
-```
-
-## 🎯 Marketing Integration
-
-### Call Tracking Setup:
-```tsx
-// In lib/constants.ts
-export const PHONE_NUMBERS = {
-  primary: '+1-XXX-XXX-XXXX',
-  tracked: {
-    website: '+1-XXX-XXX-XXXX',
-    googleAds: '+1-XXX-XXX-XXXX',
-    facebook: '+1-XXX-XXX-XXXX',
-  }
-};
-
-// Usage in components
-import { PHONE_NUMBERS } from '@/lib/constants';
-
-const PhoneLink = () => (
-  <a 
-    href={`tel:${PHONE_NUMBERS.tracked.website}`}
-    className="text-accent-orange font-bold hover:underline"
-  >
-    {PHONE_NUMBERS.primary}
-  </a>
-);
-```
-
-### UTM Parameter Strategy:
-- Source: `website`, `google`, `facebook`, `nextdoor`
-- Medium: `organic`, `cpc`, `social`
-- Campaign: `dumpster-sizes`, `instant-quote`, `service-area`
-
-## 🚀 Performance & Launch
-
-### Core Web Vitals Focus:
-- LCP: Optimize hero image (WebP, lazy loading)
-- CLS: Reserve space for images, stable layouts
-- FID: Minimal JavaScript, efficient form handling
-
-### Launch Checklist:
-- [ ] Google Business Profile created
-- [ ] Bing Places for Business setup
-- [ ] Local citations (Yelp, YellowPages, HomeAdvisor)
-- [ ] Schema markup validated
-- [ ] Mobile responsiveness tested
-- [ ] Form submissions working
-- [ ] Analytics tracking (GA4, GSC)
-- [ ] SSL certificate configured
-- [ ] Sitemap submitted to search engines
+## Suggested folders
+- /app
+  - /(public)
+    - booking/page.tsx
+    - dumpster-sizes/page.tsx
+    - cart/page.tsx
+    - checkout/page.tsx
+    - pay/success/page.tsx
+    - pay/cancel/page.tsx
+  - /(admin)
+    - admin/layout.tsx
+    - admin/page.tsx
+    - admin/requests/page.tsx
+    - admin/requests/[id]/page.tsx
+    - admin/bookings/page.tsx
+    - admin/bookings/[id]/page.tsx
+    - admin/invoices/page.tsx
+    - admin/invoices/[id]/page.tsx
+    - admin/dumpsters/page.tsx
+    - admin/settings/page.tsx
+- /lib
+  - supabase/server.ts
+  - supabase/client.ts
+  - stripe/server.ts
+  - pricing/engine.ts
+  - geo/serviceability.ts
+  - invoices/pdf.ts
+  - email/send.ts
+- /supabase
+  - migrations/*.sql
+  - seed.sql
 
 ---
 
-This specification creates a professional, industrial-themed website that converts visitors into dumpster rental customers. The dark green color scheme matches your logo while providing strong contrast for CTAs and important information. The site is optimized for local SEO across three states and designed to facilitate quick, easy quoting and booking.
+# 1. Data model (v1 single business, SaaS-ready)
+
+Everything includes business_id even if we only have one business initially.
+
+## Tables (minimum viable set)
+- businesses
+- business_users
+- customers
+- addresses
+- service_areas (polygons)
+- pricing_rules
+- quotes
+- quote_line_items
+- carts
+- cart_items
+- booking_requests
+- bookings
+- invoices
+- invoice_line_items
+- stripe_customers
+- payments
+- dumpsters (admin config + assignment later)
+- dump_tickets (for tonnage)
+- adjustments (overage charges)
+- events_audit (optional but recommended)
+
+## Migration step
+Create SQL migrations in /supabase/migrations:
+- 0001_init.sql — create tables + indexes
+- 0002_rls.sql — enable RLS + base policies
+- 0003_seed.sql — seed one business, one admin user, pricing rules, service area
+
+### Required columns (high signal)
+#### businesses
+- id uuid pk
+- name text
+- phone text
+- email text
+- created_at timestamptz
+
+#### business_users
+- id uuid pk
+- business_id uuid fk
+- user_id uuid (auth.users)
+- role text check in ('owner','admin','dispatcher','accounting','driver','read_only')
+- created_at timestamptz
+Unique (business_id, user_id)
+
+#### customers
+- id uuid pk
+- business_id uuid fk
+- user_id uuid nullable (auth uid)
+- name text
+- email text
+- phone text
+- created_at timestamptz
+Unique (business_id, email)
+
+#### addresses
+- id uuid pk
+- business_id uuid fk
+- customer_id uuid nullable
+- full_address text
+- street text
+- city text
+- state text
+- zip text
+- lat double precision
+- lng double precision
+- place_id text nullable
+- created_at timestamptz
+
+#### service_areas
+- id uuid pk
+- business_id uuid fk
+- name text
+- polygon jsonb  // geojson polygon
+- active bool default true
+
+#### pricing_rules
+- id uuid pk
+- business_id uuid fk
+- waste_type text check in ('construction_debris','household_trash')
+- dumpster_size int check in (10,15,20,30,40)
+- base_price int  // cents
+- delivery_fee int // cents
+- haul_fee int // cents
+- included_days int
+- extra_day_fee int // cents/day
+- included_tons numeric(6,2)
+- overage_per_ton int // cents/ton
+- public_notes text
+- active bool default true
+Unique (business_id, waste_type, dumpster_size, active) partial or enforce only one active per combo.
+
+#### quotes
+- id uuid pk
+- business_id uuid fk
+- address_id uuid fk
+- waste_type text
+- dumpster_size int
+- dropoff_date date
+- pickup_date date
+- status text check in ('draft','sent','expired','converted')
+- expires_at timestamptz
+- pricing_snapshot jsonb  // LOCKED numbers in cents + included days/tons
+- created_at timestamptz
+
+#### quote_line_items
+- id uuid pk
+- quote_id uuid fk
+- label text
+- amount int // cents (can be negative for discounts)
+- sort_order int
+
+#### carts
+- id uuid pk
+- business_id uuid fk
+- user_id uuid fk auth.users
+- status text check in ('active','abandoned','converted')
+- created_at timestamptz
+
+#### cart_items
+- id uuid pk
+- cart_id uuid fk
+- quote_id uuid fk
+
+#### booking_requests
+- id uuid pk
+- business_id uuid fk
+- customer_id uuid fk
+- quote_id uuid fk
+- status text check in ('pending','approved','declined','modified_awaiting_customer')
+- customer_inputs jsonb // gate code, instructions, etc.
+- created_at timestamptz
+
+#### bookings
+- id uuid pk
+- business_id uuid fk
+- booking_request_id uuid fk
+- customer_id uuid fk
+- address_id uuid fk
+- dumpster_id uuid nullable fk
+- status text check in ('confirmed','scheduled','dropped','picked_up','completed','cancelled')
+- dropoff_scheduled_at timestamptz nullable
+- pickup_due_at timestamptz nullable
+- dropped_at timestamptz nullable
+- picked_up_at timestamptz nullable
+- pricing_snapshot jsonb // copy of quote snapshot
+- created_at timestamptz
+
+#### invoices
+- id uuid pk
+- business_id uuid fk
+- customer_id uuid fk
+- booking_id uuid fk
+- invoice_number text
+- status text check in ('unpaid','paid','void','refunded','partial')
+- issued_at timestamptz
+- subtotal int
+- total int
+- stripe_checkout_session_id text nullable
+- stripe_payment_intent_id text nullable
+- created_at timestamptz
+Unique (business_id, invoice_number)
+
+#### invoice_line_items
+- id uuid pk
+- invoice_id uuid fk
+- label text
+- quantity int default 1
+- unit_price int // cents
+- amount int // cents
+- type text check in ('base','delivery','haul','extra_days','tax','discount','adjustment')
+
+#### stripe_customers
+- id uuid pk
+- business_id uuid fk
+- customer_id uuid fk
+- stripe_customer_id text
+- default_payment_method_id text nullable
+Unique (business_id, customer_id)
+
+#### payments
+- id uuid pk
+- invoice_id uuid fk
+- stripe_payment_intent_id text
+- amount int
+- status text
+- receipt_url text nullable
+- created_at timestamptz
+
+#### dumpsters
+- id uuid pk
+- business_id uuid fk
+- unit_number text
+- size int
+- type text nullable
+- status text check in ('available','reserved','dropped','maintenance','retired')
+- notes text nullable
+Unique (business_id, unit_number)
+
+#### dump_tickets
+- id uuid pk
+- booking_id uuid fk
+- facility text
+- ticket_number text
+- net_tons numeric(6,2)
+- ticket_datetime timestamptz
+- attachment_url text nullable
+
+#### adjustments (overage charges)
+- id uuid pk
+- business_id uuid fk
+- booking_id uuid fk
+- customer_id uuid fk
+- kind text check in ('tonnage_overage','late_fee','other')
+- amount int // cents
+- status text check in ('pending','charged','failed','void')
+- stripe_payment_intent_id text nullable
+- notes text nullable
+- created_at timestamptz
+
+---
+
+# 2. Security (RLS) — do this early
+
+## Rules
+- Public users can create quotes and booking_requests but only read their own (via user_id linking).
+- Admin users (business_users) can read/write everything for their business.
+
+### Implementation approach (v1)
+- All public actions that write sensitive data happen through server actions / route handlers using Supabase service role key (server-side only).
+- Client-side Supabase is used for auth session + reading the logged-in user's own records.
+- RLS still enforced for safety; service role bypass is used only in server routes.
+
+### Required policies
+- business_users: user can read their own membership rows
+- customers/addresses/quotes/booking_requests/bookings/invoices: user can read rows where customer.user_id = auth.uid()
+- admins: allow CRUD where exists (select 1 from business_users where user_id=auth.uid() and business_id = row.business_id)
+
+---
+
+# 3. Pricing engine (pure function) — test first
+
+Create /lib/pricing/engine.ts
+
+Input:
+- pricing_rule
+- dropoff_date, pickup_date
+
+Output:
+- pricing_snapshot {
+  base_price, delivery_fee, haul_fee,
+  included_days, extra_day_fee,
+  included_tons, overage_per_ton,
+  rental_days, extra_days,
+  subtotal, total,
+  notes
+}
+- line_items[] {label, amount, type, sort_order}
+
+Rules:
+- rental_days = (pickup_date - dropoff_date) in days (inclusive/exclusive: decide and lock)
+  - Recommended: count full calendar days between dates, pickup_date must be >= dropoff_date.
+- extra_days = max(0, rental_days - included_days)
+- total = base + delivery + haul + extra_days*extra_day_fee
+- store all money in cents (ints)
+
+Tests:
+- unit test pricing engine with multiple date ranges.
+- verify extra day calculations.
+
+Deliverable:
+- Passing unit tests.
+- No DB or UI yet.
+
+---
+
+# 4. Serviceability check (geo) — test second
+
+Create /lib/geo/serviceability.ts
+- function isInServiceArea(point, polygons): boolean
+- polygon stored as GeoJSON in DB
+
+Use a known point-in-polygon implementation (keep it deterministic).
+Tests:
+- seed polygon for Pittsburgh area
+- verify an inside address returns true, outside returns false
+
+---
+
+# 5. Public Flow Step-by-step implementation
+
+## Step 5.1 /booking page
+UI:
+- Address input with autocomplete (Google Places or Mapbox)
+- Submit button
+
+Server route:
+- POST /api/quote/start
+  - Accept address payload + lat/lng + normalized fields
+  - Verify serviceability using polygons in DB
+  - If not serviceable: return {ok:false, reason}
+  - If serviceable:
+    - create address row
+    - create quote row status=draft with address_id
+    - return {ok:true, quoteId}
+
+Client:
+- on success redirect /dumpster-sizes?quote=...
+
+Tests:
+- serviceable address creates quote
+- unserviceable returns error and UI highlights input red
+
+## Step 5.2 /dumpster-sizes page
+UI:
+- waste type dropdown
+- dumpster size radio list (fetch active pricing_rules)
+- dropoff + pickup date
+- live quote price display (calls API or client computes after fetching rule)
+
+Server route:
+- POST /api/quote/configure
+  - Validate inputs
+  - Load pricing_rule for (waste_type, size)
+  - Run pricing engine
+  - Update quote:
+    - waste_type, dumpster_size, dates
+    - pricing_snapshot jsonb
+    - upsert quote_line_items from pricing engine output
+  - return updated quote summary
+
+Actions:
+- Send Quote
+  - POST /api/quote/send
+    - generate PDF from quote snapshot
+    - email customer (allow email field prompt)
+    - set quote status=sent, expires_at
+- Add to Cart
+  - If not logged in -> redirect to /login?next=/cart
+  - If logged in -> POST /api/cart/add with quoteId
+    - create cart if none active
+    - create cart_item
+
+Tests:
+- quote configure calculates correctly and persists snapshot + line items
+- send quote produces a PDF (placeholder ok initially) + emails are logged (use dev sink)
+- add to cart creates cart + cart item
+
+---
+
+# 6. Auth + customer profile link
+
+Requirement:
+- Once user signs up, associate them to a customer row.
+
+On signup/login redirect to /cart
+- If customer row missing for this business:
+  - Create customer row using auth user email + name if available
+  - Link customer.user_id = auth.uid()
+
+Implement as:
+- Server route POST /api/customer/ensure
+Called from /cart layout when session exists.
+
+Test:
+- New user creates customer row automatically.
+
+---
+
+# 7. Cart + Checkout + Booking Request creation
+
+## Step 7.1 /cart
+- Show active cart items with quote summaries
+- Button: Checkout -> /checkout?cart=...
+
+## Step 7.2 /checkout
+UI fields:
+- contact name, phone (email from auth)
+- instructions textarea
+- gate checkbox + gate code or call number requirement
+- confirm terms checkbox
+
+Server route:
+- POST /api/booking-request/create
+  - Validate session + ensure customer exists
+  - Validate cart has 1 quote (v1 can be single-item cart)
+  - Validate quote not expired and has pricing_snapshot
+  - Create booking_request status=pending with customer_inputs jsonb
+  - Return booking_request_id
+
+Email provider:
+- Send request summary to business notification recipients
+- Include admin link /admin/requests/:id
+
+Tests:
+- booking_request created
+- provider email sent with correct details
+
+---
+
+# 8. Admin backend MVP (requests first)
+
+## Step 8.1 Admin auth + role check
+- /admin routes require business_users role
+- Implement middleware or layout guard (server-side)
+- If unauthorized -> redirect /login or 403
+
+Test:
+- non-admin blocked
+- admin allowed
+
+## Step 8.2 /admin/requests list + detail
+List columns:
+- customer, address, dates, size, total, status
+
+Detail page:
+- View request details
+- Actions:
+  - Approve (creates booking + invoice + Stripe checkout link)
+  - Modify (edits request/quote, sets status=modified_awaiting_customer, emails customer to accept changes)
+  - Decline (sets status, emails customer)
+
+Note: For v1 simplicity, allow Modify that directly updates quote + pricing snapshot and then sends customer "changes confirmed + proceed to payment" in a single step if you want phone flow. But keep statuses in place.
+
+Tests:
+- approve creates booking + invoice
+- modify changes quote snapshot + re-prices
+- decline sets state and emails
+
+---
+
+# 9. Payment (full amount upfront)
+
+Decision: payment happens after admin approval, but customer must pay immediately (no later invoicing).
+
+## Step 9.1 Approve -> create Stripe Checkout Session
+Server route:
+- POST /api/payments/create-checkout
+  - Input: invoiceId
+  - Ensure invoice belongs to customer and status=unpaid
+  - Ensure stripe customer exists:
+    - if none, create Stripe customer, store stripe_customer_id
+  - Create checkout session:
+    - mode=payment
+    - customer=stripe_customer_id
+    - line_items from invoice_line_items
+    - success_url=/pay/success?invoice=...
+    - cancel_url=/pay/cancel?invoice=...
+    - metadata: {invoice_id, business_id, customer_id}
+    - payment_intent_data: {setup_future_usage:'off_session'}
+  - Save session id on invoice
+  - Return checkout_url
+
+Customer email includes checkout_url.
+
+Test:
+- checkout session created
+- invoice updated with session id
+- can open checkout url
+
+## Step 9.2 Stripe webhooks
+Route handler: /api/stripe/webhook
+Listen for:
+- checkout.session.completed
+- payment_intent.succeeded
+- payment_intent.payment_failed
+
+On success:
+- mark invoice status=paid
+- store payment intent id, receipt URL if present
+- create payments row
+- create booking status=confirmed (or "scheduled" depending on your lifecycle)
+- email customer + provider confirmation
+
+Tests:
+- local webhook testing via Stripe CLI triggers invoice update
+- emails fire
+
+---
+
+# 10. Booking lifecycle (drop/pickup) + map later
+
+Implement admin-only booking updates:
+- mark dropped_at
+- mark picked_up_at
+- set status transitions
+
+Add optional map pins once you store booking address lat/lng and status.
+
+Tests:
+- transitions are enforced (can’t pick up before dropped unless admin override)
+
+---
+
+# 11. Overage charges (admin later, off-session)
+
+Decision: Overages are charged later by admin using saved payment method.
+
+## Step 11.1 Record dump ticket
+Admin enters:
+- net_tons
+- ticket info
+
+Server:
+- compute overage tons from booking.pricing_snapshot.included_tons
+- amount = overage_tons * overage_per_ton
+
+Create adjustment row status=pending.
+
+## Step 11.2 Charge overage (off-session)
+Admin clicks "Charge card" on adjustment.
+
+Server route:
+- POST /api/adjustments/charge
+  - Validate admin
+  - Load adjustment + customer stripe_customer_id
+  - Retrieve default payment method OR require one exists
+  - Create payment intent:
+    - amount=adjustment.amount
+    - currency=usd
+    - customer=stripe_customer_id
+    - payment_method=default_payment_method_id (or Stripe default)
+    - off_session=true
+    - confirm=true
+    - metadata includes booking/invoice refs
+  - On success:
+    - adjustment.status=charged
+    - store payment_intent_id
+    - email receipt to customer + notify provider
+  - On failure:
+    - adjustment.status=failed
+    - store failure code/message
+    - email customer "payment failed" with call-to-action
+
+Tests:
+- can create pending adjustment from dump ticket
+- can charge off-session in Stripe test mode
+- failures are handled
+
+---
+
+# 12. PDF generation (quote + invoice)
+
+Implement minimal first:
+- Quote PDF: address, dates, size, waste type, line items, total, expiration
+- Invoice PDF: invoice number, paid/unpaid, line items, payment info
+
+Store PDFs in Supabase Storage:
+- /quotes/{quoteId}.pdf
+- /invoices/{invoiceId}.pdf
+
+Tests:
+- PDF bytes generated
+- file stored
+- download link works for authorized users
+
+---
+
+# 13. Admin Settings (replace config file)
+
+Implement settings in DB so later SaaS can manage each business.
+Create table:
+- business_settings (business_id, jsonb settings)
+
+Store:
+- quote_expiration_days
+- notification_emails[]
+- terms_text
+- service_area behavior flags
+- etc.
+
+Admin UI:
+- /admin/settings
+- edit settings
+- ensure changes do NOT affect existing quotes/bookings due to snapshots.
+
+Test:
+- update settings affects new quotes only (not existing snapshots)
+
+---
+
+# 14. Testing checklist per milestone
+
+## Milestone A: Quote flow works
+- Address validation + serviceability
+- Quote pricing snapshot stored
+- Send quote email + PDF stored
+
+## Milestone B: Booking request works
+- Auth
+- Cart
+- Checkout details
+- Booking request pending approval
+- Provider email delivered
+
+## Milestone C: Approve -> pay -> confirm works
+- Approve creates booking + invoice
+- Customer pays via Stripe Checkout
+- Webhook marks invoice paid
+- Confirmation emails sent
+
+## Milestone D: Overage charging works
+- Admin records dump ticket
+- Adjustment created
+- Off-session charge succeeds
+- Failures handled
+
+---
+
+# 15. Non-negotiable implementation notes
+- All prices stored in cents (int). Never float for money.
+- Always persist pricing_snapshot before allowing checkout.
+- Never recalc historical totals from current settings; rely on snapshots.
+- Stripe webhooks must verify signature.
+- Admin routes must be server-protected (not just client checks).
+- Email send should be abstracted so you can swap providers.
+
+---
+
+# 16. Suggested next tasks (start now)
+1) Create migrations + seed one business + one admin.
+2) Implement pricing engine + unit tests.
+3) Implement serviceability check + tests.
+4) Build /booking -> /dumpster-sizes with quote creation/configuration.
+5) Implement /admin/requests with Approve flow.
+6) Integrate Stripe checkout + webhooks.
+7) Add adjustments overage flow.
+
+END.
+
+
+
+
+LAUDE.md — Pittsburgh Dumpster Booking + Admin (Next.js + Supabase + Stripe)
+This document is the implementation playbook. Follow it in order. Each step must be implementable and testable before moving on.
+Core Decisions (locked)
+Customer pays full amount upfront at checkout (no delayed payment).
+Pricing snapshots must be persisted on quote/booking/invoice to prevent future config changes from affecting historical transactions.
+Separate BookingRequest (pending approval) from Booking (confirmed) is required.
+Stripe Customer ID + saved payment method for off-session overage charges is required.
+
+
+
+
+
+0. Technical stack + repo structure
+Stack
+Next.js (App Router)
+Supabase (Postgres + Auth + Storage + RLS)
+Stripe (Checkout + webhooks + off-session charges for overages)
+Map provider: start with Mapbox or Google Maps (choose one), but isolate behind a component.
+Suggested folders
+/app
+/(public)
+booking/page.tsx
+dumpster-sizes/page.tsx
+cart/page.tsx
+checkout/page.tsx
+pay/success/page.tsx
+pay/cancel/page.tsx
+/(admin)
+admin/layout.tsx
+admin/page.tsx
+admin/requests/page.tsx
+admin/requests/[id]/page.tsx
+admin/bookings/page.tsx
+admin/bookings/[id]/page.tsx
+admin/invoices/page.tsx
+admin/invoices/[id]/page.tsx
+admin/dumpsters/page.tsx
+admin/settings/page.tsx
+/lib
+supabase/server.ts
+supabase/client.ts
+stripe/server.ts
+pricing/engine.ts
+geo/serviceability.ts
+invoices/pdf.ts
+email/send.ts
+/supabase
+migrations/*.sql
+seed.sql
+
+
+1. Data model (v1 single business, SaaS-ready)
+Everything includes business_id even if we only have one business initially.
+Tables (minimum viable set)
+businesses
+business_users
+customers
+addresses
+service_areas (polygons)
+pricing_rules
+quotes
+quote_line_items
+carts
+cart_items
+booking_requests
+bookings
+invoices
+invoice_line_items
+stripe_customers
+payments
+dumpsters (admin config + assignment later)
+dump_tickets (for tonnage)
+adjustments (overage charges)
+events_audit (optional but recommended)
+Migration step
+Create SQL migrations in /supabase/migrations:
+
+0001_init.sql — create tables + indexes
+0002_rls.sql — enable RLS + base policies
+0003_seed.sql — seed one business, one admin user, pricing rules, service area
+Required columns (high signal)
+businesses
+id uuid pk
+name text
+phone text
+email text
+created_at timestamptz
+business_users
+id uuid pk
+business_id uuid fk
+user_id uuid (auth.users)
+role text check in ('owner','admin','dispatcher','accounting','driver','read_only')
+created_at timestamptz Unique (business_id, user_id)
+customers
+id uuid pk
+business_id uuid fk
+user_id uuid nullable (auth uid)
+name text
+email text
+phone text
+created_at timestamptz Unique (business_id, email)
+addresses
+id uuid pk
+business_id uuid fk
+customer_id uuid nullable
+full_address text
+street text
+city text
+state text
+zip text
+lat double precision
+lng double precision
+place_id text nullable
+created_at timestamptz
+service_areas
+id uuid pk
+business_id uuid fk
+name text
+polygon jsonb  // geojson polygon
+active bool default true
+pricing_rules
+id uuid pk
+business_id uuid fk
+waste_type text check in ('construction_debris','household_trash')
+dumpster_size int check in (10,15,20,30,40)
+base_price int  // cents
+delivery_fee int // cents
+haul_fee int // cents
+included_days int
+extra_day_fee int // cents/day
+included_tons numeric(6,2)
+overage_per_ton int // cents/ton
+public_notes text
+active bool default true Unique (business_id, waste_type, dumpster_size, active) partial or enforce only one active per combo.
+quotes
+id uuid pk
+business_id uuid fk
+address_id uuid fk
+waste_type text
+dumpster_size int
+dropoff_date date
+pickup_date date
+status text check in ('draft','sent','expired','converted')
+expires_at timestamptz
+pricing_snapshot jsonb  // LOCKED numbers in cents + included days/tons
+created_at timestamptz
+quote_line_items
+id uuid pk
+quote_id uuid fk
+label text
+amount int // cents (can be negative for discounts)
+sort_order int
+carts
+id uuid pk
+business_id uuid fk
+user_id uuid fk auth.users
+status text check in ('active','abandoned','converted')
+created_at timestamptz
+cart_items
+id uuid pk
+cart_id uuid fk
+quote_id uuid fk
+booking_requests
+id uuid pk
+business_id uuid fk
+customer_id uuid fk
+quote_id uuid fk
+status text check in ('pending','approved','declined','modified_awaiting_customer')
+customer_inputs jsonb // gate code, instructions, etc.
+created_at timestamptz
+bookings
+id uuid pk
+business_id uuid fk
+booking_request_id uuid fk
+customer_id uuid fk
+address_id uuid fk
+dumpster_id uuid nullable fk
+status text check in ('confirmed','scheduled','dropped','picked_up','completed','cancelled')
+dropoff_scheduled_at timestamptz nullable
+pickup_due_at timestamptz nullable
+dropped_at timestamptz nullable
+picked_up_at timestamptz nullable
+pricing_snapshot jsonb // copy of quote snapshot
+created_at timestamptz
+invoices
+id uuid pk
+business_id uuid fk
+customer_id uuid fk
+booking_id uuid fk
+invoice_number text
+status text check in ('unpaid','paid','void','refunded','partial')
+issued_at timestamptz
+subtotal int
+total int
+stripe_checkout_session_id text nullable
+stripe_payment_intent_id text nullable
+created_at timestamptz Unique (business_id, invoice_number)
+invoice_line_items
+id uuid pk
+invoice_id uuid fk
+label text
+quantity int default 1
+unit_price int // cents
+amount int // cents
+type text check in ('base','delivery','haul','extra_days','tax','discount','adjustment')
+stripe_customers
+id uuid pk
+business_id uuid fk
+customer_id uuid fk
+stripe_customer_id text
+default_payment_method_id text nullable Unique (business_id, customer_id)
+payments
+id uuid pk
+invoice_id uuid fk
+stripe_payment_intent_id text
+amount int
+status text
+receipt_url text nullable
+created_at timestamptz
+dumpsters
+id uuid pk
+business_id uuid fk
+unit_number text
+size int
+type text nullable
+status text check in ('available','reserved','dropped','maintenance','retired')
+notes text nullable Unique (business_id, unit_number)
+dump_tickets
+id uuid pk
+booking_id uuid fk
+facility text
+ticket_number text
+net_tons numeric(6,2)
+ticket_datetime timestamptz
+attachment_url text nullable
+adjustments (overage charges)
+id uuid pk
+business_id uuid fk
+booking_id uuid fk
+customer_id uuid fk
+kind text check in ('tonnage_overage','late_fee','other')
+amount int // cents
+status text check in ('pending','charged','failed','void')
+stripe_payment_intent_id text nullable
+notes text nullable
+created_at timestamptz
+
+
+2. Security (RLS) — do this early
+Rules
+Public users can create quotes and booking_requests but only read their own (via user_id linking).
+Admin users (business_users) can read/write everything for their business.
+Implementation approach (v1)
+All public actions that write sensitive data happen through server actions / route handlers using Supabase service role key (server-side only).
+Client-side Supabase is used for auth session + reading the logged-in user's own records.
+RLS still enforced for safety; service role bypass is used only in server routes.
+Required policies
+business_users: user can read their own membership rows
+customers/addresses/quotes/booking_requests/bookings/invoices: user can read rows where customer.user_id = auth.uid()
+admins: allow CRUD where exists (select 1 from business_users where user_id=auth.uid() and business_id = row.business_id)
+
+
+3. Pricing engine (pure function) — test first
+Create /lib/pricing/engine.ts
+
+Input:
+
+pricing_rule
+dropoff_date, pickup_date
+
+Output:
+
+pricing_snapshot { base_price, delivery_fee, haul_fee, included_days, extra_day_fee, included_tons, overage_per_ton, rental_days, extra_days, subtotal, total, notes }
+line_items[] {label, amount, type, sort_order}
+
+Rules:
+
+rental_days = (pickup_date - dropoff_date) in days (inclusive/exclusive: decide and lock)
+Recommended: count full calendar days between dates, pickup_date must be >= dropoff_date.
+extra_days = max(0, rental_days - included_days)
+total = base + delivery + haul + extra_days*extra_day_fee
+store all money in cents (ints)
+
+Tests:
+
+unit test pricing engine with multiple date ranges.
+verify extra day calculations.
+
+Deliverable:
+
+Passing unit tests.
+No DB or UI yet.
+
+
+4. Serviceability check (geo) — test second
+Create /lib/geo/serviceability.ts
+
+function isInServiceArea(point, polygons): boolean
+polygon stored as GeoJSON in DB
+
+Use a known point-in-polygon implementation (keep it deterministic). Tests:
+
+seed polygon for Pittsburgh area
+verify an inside address returns true, outside returns false
+
+
+5. Public Flow Step-by-step implementation
+Step 5.1 /booking page
+UI:
+
+Address input with autocomplete (Google Places or Mapbox)
+Submit button
+
+Server route:
+
+POST /api/quote/start
+Accept address payload + lat/lng + normalized fields
+Verify serviceability using polygons in DB
+If not serviceable: return {ok:false, reason}
+If serviceable:
+create address row
+create quote row status=draft with address_id
+return {ok:true, quoteId}
+
+Client:
+
+on success redirect /dumpster-sizes?quote=...
+
+Tests:
+
+serviceable address creates quote
+unserviceable returns error and UI highlights input red
+Step 5.2 /dumpster-sizes page
+UI:
+
+waste type dropdown
+dumpster size radio list (fetch active pricing_rules)
+dropoff + pickup date
+live quote price display (calls API or client computes after fetching rule)
+
+Server route:
+
+POST /api/quote/configure
+Validate inputs
+Load pricing_rule for (waste_type, size)
+Run pricing engine
+Update quote:
+waste_type, dumpster_size, dates
+pricing_snapshot jsonb
+upsert quote_line_items from pricing engine output
+return updated quote summary
+
+Actions:
+
+Send Quote
+POST /api/quote/send
+generate PDF from quote snapshot
+email customer (allow email field prompt)
+set quote status=sent, expires_at
+Add to Cart
+If not logged in -> redirect to /login?next=/cart
+If logged in -> POST /api/cart/add with quoteId
+create cart if none active
+create cart_item
+
+Tests:
+
+quote configure calculates correctly and persists snapshot + line items
+send quote produces a PDF (placeholder ok initially) + emails are logged (use dev sink)
+add to cart creates cart + cart item
+
+
+6. Auth + customer profile link
+Requirement:
+
+Once user signs up, associate them to a customer row.
+
+On signup/login redirect to /cart
+
+If customer row missing for this business:
+Create customer row using auth user email + name if available
+Link customer.user_id = auth.uid()
+
+Implement as:
+
+Server route POST /api/customer/ensure Called from /cart layout when session exists.
+
+Test:
+
+New user creates customer row automatically.
+
+
+7. Cart + Checkout + Booking Request creation
+Step 7.1 /cart
+Show active cart items with quote summaries
+Button: Checkout -> /checkout?cart=...
+Step 7.2 /checkout
+UI fields:
+
+contact name, phone (email from auth)
+instructions textarea
+gate checkbox + gate code or call number requirement
+confirm terms checkbox
+
+Server route:
+
+POST /api/booking-request/create
+Validate session + ensure customer exists
+Validate cart has 1 quote (v1 can be single-item cart)
+Validate quote not expired and has pricing_snapshot
+Create booking_request status=pending with customer_inputs jsonb
+Return booking_request_id
+
+Email provider:
+
+Send request summary to business notification recipients
+Include admin link /admin/requests/:id
+
+Tests:
+
+booking_request created
+provider email sent with correct details
+
+
+8. Admin backend MVP (requests first)
+Step 8.1 Admin auth + role check
+/admin routes require business_users role
+Implement middleware or layout guard (server-side)
+If unauthorized -> redirect /login or 403
+
+Test:
+
+non-admin blocked
+admin allowed
+Step 8.2 /admin/requests list + detail
+List columns:
+
+customer, address, dates, size, total, status
+
+Detail page:
+
+View request details
+Actions:
+Approve (creates booking + invoice + Stripe checkout link)
+Modify (edits request/quote, sets status=modified_awaiting_customer, emails customer to accept changes)
+Decline (sets status, emails customer)
+
+Note: For v1 simplicity, allow Modify that directly updates quote + pricing snapshot and then sends customer "changes confirmed + proceed to payment" in a single step if you want phone flow. But keep statuses in place.
+
+Tests:
+
+approve creates booking + invoice
+modify changes quote snapshot + re-prices
+decline sets state and emails
+
+
+9. Payment (full amount upfront)
+Decision: payment happens after admin approval, but customer must pay immediately (no later invoicing).
+Step 9.1 Approve -> create Stripe Checkout Session
+Server route:
+
+POST /api/payments/create-checkout
+Input: invoiceId
+Ensure invoice belongs to customer and status=unpaid
+Ensure stripe customer exists:
+if none, create Stripe customer, store stripe_customer_id
+Create checkout session:
+mode=payment
+customer=stripe_customer_id
+line_items from invoice_line_items
+success_url=/pay/success?invoice=...
+cancel_url=/pay/cancel?invoice=...
+metadata: {invoice_id, business_id, customer_id}
+payment_intent_data: {setup_future_usage:'off_session'}
+Save session id on invoice
+Return checkout_url
+
+Customer email includes checkout_url.
+
+Test:
+
+checkout session created
+invoice updated with session id
+can open checkout url
+Step 9.2 Stripe webhooks
+Route handler: /api/stripe/webhook Listen for:
+
+checkout.session.completed
+payment_intent.succeeded
+payment_intent.payment_failed
+
+On success:
+
+mark invoice status=paid
+store payment intent id, receipt URL if present
+create payments row
+create booking status=confirmed (or "scheduled" depending on your lifecycle)
+email customer + provider confirmation
+
+Tests:
+
+local webhook testing via Stripe CLI triggers invoice update
+emails fire
+
+
+10. Booking lifecycle (drop/pickup) + map later
+Implement admin-only booking updates:
+
+mark dropped_at
+mark picked_up_at
+set status transitions
+
+Add optional map pins once you store booking address lat/lng and status.
+
+Tests:
+
+transitions are enforced (can’t pick up before dropped unless admin override)
+
+
+11. Overage charges (admin later, off-session)
+Decision: Overages are charged later by admin using saved payment method.
+Step 11.1 Record dump ticket
+Admin enters:
+
+net_tons
+ticket info
+
+Server:
+
+compute overage tons from booking.pricing_snapshot.included_tons
+amount = overage_tons * overage_per_ton
+
+Create adjustment row status=pending.
+Step 11.2 Charge overage (off-session)
+Admin clicks "Charge card" on adjustment.
+
+Server route:
+
+POST /api/adjustments/charge
+Validate admin
+Load adjustment + customer stripe_customer_id
+Retrieve default payment method OR require one exists
+Create payment intent:
+amount=adjustment.amount
+currency=usd
+customer=stripe_customer_id
+payment_method=default_payment_method_id (or Stripe default)
+off_session=true
+confirm=true
+metadata includes booking/invoice refs
+On success:
+adjustment.status=charged
+store payment_intent_id
+email receipt to customer + notify provider
+On failure:
+adjustment.status=failed
+store failure code/message
+email customer "payment failed" with call-to-action
+
+Tests:
+
+can create pending adjustment from dump ticket
+can charge off-session in Stripe test mode
+failures are handled
+
+
+12. PDF generation (quote + invoice)
+Implement minimal first:
+
+Quote PDF: address, dates, size, waste type, line items, total, expiration
+Invoice PDF: invoice number, paid/unpaid, line items, payment info
+
+Store PDFs in Supabase Storage:
+
+/quotes/{quoteId}.pdf
+/invoices/{invoiceId}.pdf
+
+Tests:
+
+PDF bytes generated
+file stored
+download link works for authorized users
+
+
+13. Admin Settings (replace config file)
+Implement settings in DB so later SaaS can manage each business. Create table:
+
+business_settings (business_id, jsonb settings)
+
+Store:
+
+quote_expiration_days
+notification_emails[]
+terms_text
+service_area behavior flags
+etc.
+
+Admin UI:
+
+/admin/settings
+edit settings
+ensure changes do NOT affect existing quotes/bookings due to snapshots.
+
+Test:
+
+update settings affects new quotes only (not existing snapshots)
+
+
+14. Testing checklist per milestone
+Milestone A: Quote flow works
+Address validation + serviceability
+Quote pricing snapshot stored
+Send quote email + PDF stored
+Milestone B: Booking request works
+Auth
+Cart
+Checkout details
+Booking request pending approval
+Provider email delivered
+Milestone C: Approve -> pay -> confirm works
+Approve creates booking + invoice
+Customer pays via Stripe Checkout
+Webhook marks invoice paid
+Confirmation emails sent
+Milestone D: Overage charging works
+Admin records dump ticket
+Adjustment created
+Off-session charge succeeds
+Failures handled
+
+
+15. Non-negotiable implementation notes
+All prices stored in cents (int). Never float for money.
+Always persist pricing_snapshot before allowing checkout.
+Never recalc historical totals from current settings; rely on snapshots.
+Stripe webhooks must verify signature.
+Admin routes must be server-protected (not just client checks).
+Email send should be abstracted so you can swap providers.
+
+
+16. Suggested next tasks (start now)
+Create migrations + seed one business + one admin.
+Implement pricing engine + unit tests.
+Implement serviceability check + tests.
+Build /booking -> /dumpster-sizes with quote creation/configuration.
+Implement /admin/requests with Approve flow.
+Integrate Stripe checkout + webhooks.
+Add adjustments overage flow.
+
+END.
+
