@@ -137,6 +137,29 @@ export function checkServiceability(
 }
 
 /**
+ * Simple check if a point is within any of the given polygons.
+ * This is a convenience wrapper for use cases that just need a boolean result.
+ *
+ * @param point - Object with lat and lng properties
+ * @param polygons - Array of GeoJSON polygon objects
+ * @returns true if point is inside any polygon
+ */
+export function isInServiceArea(
+  point: { lat: number; lng: number },
+  polygons: unknown[]
+): boolean {
+  const geoPoint: Point = [point.lng, point.lat]
+
+  for (const polygon of polygons) {
+    if (isValidPolygon(polygon) && isPointInGeoJsonPolygon(geoPoint, polygon)) {
+      return true
+    }
+  }
+
+  return false
+}
+
+/**
  * Validate that a polygon is properly formatted
  *
  * @param polygon - GeoJSON polygon to validate

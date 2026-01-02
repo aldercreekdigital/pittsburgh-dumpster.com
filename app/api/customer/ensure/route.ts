@@ -36,20 +36,44 @@ export async function POST() {
 
     const adminClient = createAdminClient()
 
-    // Check if customer already exists for this user
-    const { data: existingCustomerData } = await adminClient
+    // Check if customer already exists for this user (by user_id)
+    const { data: existingByUserId } = await adminClient
       .from('customers')
       .select('id')
       .eq('business_id', DEFAULT_BUSINESS_ID)
       .eq('user_id', user.id)
       .single()
 
-    const existingCustomer = existingCustomerData as { id: string } | null
-
-    if (existingCustomer) {
+    if (existingByUserId) {
       return NextResponse.json({
         ok: true,
-        customerId: existingCustomer.id,
+        customerId: (existingByUserId as { id: string }).id,
+        created: false,
+      })
+    }
+
+    // Check if customer exists by email (created before signup, needs linking)
+    const { data: existingByEmail } = await adminClient
+      .from('customers')
+      .select('id, user_id')
+      .eq('business_id', DEFAULT_BUSINESS_ID)
+      .eq('email', user.email || '')
+      .single()
+
+    if (existingByEmail) {
+      const existing = existingByEmail as { id: string; user_id: string | null }
+
+      // Link the existing customer to this user if not already linked
+      if (!existing.user_id) {
+        await adminClient
+          .from('customers')
+          .update({ user_id: user.id } as never)
+          .eq('id', existing.id)
+      }
+
+      return NextResponse.json({
+        ok: true,
+        customerId: existing.id,
         created: false,
       })
     }
@@ -67,29 +91,7 @@ export async function POST() {
       .select('id')
       .single()
 
-    const newCustomer = newCustomerData as { id: string } | null
-
     if (createError) {
-      // Check if it's a duplicate key error (race condition)
-      if (createError.code === '23505') {
-        const { data: existingAfterRaceData } = await adminClient
-          .from('customers')
-          .select('id')
-          .eq('business_id', DEFAULT_BUSINESS_ID)
-          .eq('user_id', user.id)
-          .single()
-
-        const existingAfterRace = existingAfterRaceData as { id: string } | null
-
-        if (existingAfterRace) {
-          return NextResponse.json({
-            ok: true,
-            customerId: existingAfterRace.id,
-            created: false,
-          })
-        }
-      }
-
       console.error('Error creating customer:', createError)
       return NextResponse.json(
         { ok: false, error: 'Failed to create customer record' },
@@ -99,7 +101,7 @@ export async function POST() {
 
     return NextResponse.json({
       ok: true,
-      customerId: newCustomer?.id,
+      customerId: (newCustomerData as { id: string })?.id,
       created: true,
     })
 

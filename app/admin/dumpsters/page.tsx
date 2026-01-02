@@ -117,13 +117,13 @@ export default async function DumpstersPage({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Dumpsters</h1>
+      <div className="flex items-center justify-between mb-4 md:mb-6">
+        <h1 className="text-xl md:text-2xl font-bold">Dumpsters</h1>
         <DumpsterForm sizes={SIZE_OPTIONS} />
       </div>
 
       {/* Status Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-4 md:mb-6">
         <div className="bg-white rounded-lg shadow p-4">
           <div className="text-2xl font-bold text-green-600">{statusCounts['available'] || 0}</div>
           <div className="text-sm text-gray-500">Available</div>
@@ -147,12 +147,12 @@ export default async function DumpstersPage({
       </div>
 
       {/* Status Filters */}
-      <div className="flex gap-2 mb-6 flex-wrap">
+      <div className="flex gap-2 mb-4 md:mb-6 overflow-x-auto pb-2">
         {STATUS_FILTERS.map((filter) => (
           <Link
             key={filter.value}
             href={`/admin/dumpsters${filter.value === 'all' ? '' : `?status=${filter.value}`}`}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+            className={`px-3 md:px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${
               currentStatus === filter.value
                 ? 'bg-primary-dark-green text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'

@@ -1364,3 +1364,6 @@ For radius, we want a polygon that is rougly within an hour or less of oakdale, 
 Use whatever method works best for you as far as testing
 
 Another thing to note is that we're working with a local supabase instance. its a fresh copy of a new remote project. to create the database we will go into /supabase/migrations/20260102052125_init_schema.sql. place any seed data into /supabase/seed.sql run supabase db reset to apply the migrations and seed data for testing. when done with testing and working as expected advise me when i should run supabase db push to send to remote
+
+# 17. Admin Manual Booking Creation Feature
+Requirement: The admin dashboard should have a section where the user can manually create a booking with the same details found in the customer facing booking creation. It should follow the same steps so that the admin user can enter the address to check serviceability, enter dumpster details (size, date, days rental), and enter user info (name, email, phone number). we will need to check current users and ensure that the user is registered to send payment link. if the user is not registered we will need to store the user details and send them an email with a quote as well as a link to register after they've registered they should be redirected to the payment link. 

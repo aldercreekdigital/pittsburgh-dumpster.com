@@ -80,7 +80,6 @@ const STATUS_FILTERS = [
   { value: 'dropped', label: 'Dropped' },
   { value: 'picked_up', label: 'Picked Up' },
   { value: 'completed', label: 'Completed' },
-  { value: 'cancelled', label: 'Cancelled' },
 ]
 
 export default async function BookingsPage({
@@ -94,17 +93,23 @@ export default async function BookingsPage({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Bookings</h1>
+      <div className="flex items-center justify-between mb-4 md:mb-6">
+        <h1 className="text-xl md:text-2xl font-bold">Bookings</h1>
+        <Link
+          href="/admin/bookings/new"
+          className="bg-primary-green hover:bg-primary-dark-green text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+        >
+          + New Booking
+        </Link>
       </div>
 
       {/* Status Filters */}
-      <div className="flex gap-2 mb-6 flex-wrap">
+      <div className="flex gap-2 mb-4 md:mb-6 overflow-x-auto pb-2">
         {STATUS_FILTERS.map((filter) => (
           <Link
             key={filter.value}
             href={`/admin/bookings${filter.value === 'all' ? '' : `?status=${filter.value}`}`}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+            className={`px-3 md:px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${
               currentStatus === filter.value
                 ? 'bg-primary-dark-green text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -115,105 +120,143 @@ export default async function BookingsPage({
         ))}
       </div>
 
-      {/* Bookings Table */}
+      {/* Bookings */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Customer
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Address
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Dumpster
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Drop-off
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Pick-up
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {bookings.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                  No bookings found
-                </td>
-              </tr>
-            ) : (
-              bookings.map((booking) => (
-                <tr key={booking.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
-                      {booking.customer?.name || '-'}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {booking.customer?.email || '-'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900 max-w-xs truncate">
-                      {booking.address?.full_address || '-'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {booking.pricing_snapshot?.dumpster_size || '-'} Yard
-                    </div>
-                    {booking.dumpster && (
-                      <div className="text-sm text-gray-500">
-                        #{booking.dumpster.unit_number}
+        {bookings.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">
+            No bookings found
+          </div>
+        ) : (
+          <>
+            {/* Mobile Cards */}
+            <div className="md:hidden divide-y">
+              {bookings.map((booking) => (
+                <Link
+                  key={booking.id}
+                  href={`/admin/bookings/${booking.id}`}
+                  className="block p-4 hover:bg-gray-50"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-gray-900">
+                        {booking.customer?.name || '-'}
                       </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {formatDate(booking.dropoff_scheduled_at)}
-                    </div>
-                    {booking.dropped_at && (
-                      <div className="text-xs text-green-600">
-                        Dropped {formatDate(booking.dropped_at)}
+                      <div className="text-sm text-gray-500 truncate">
+                        {booking.address?.full_address || '-'}
                       </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {formatDate(booking.pickup_due_at)}
                     </div>
-                    {booking.picked_up_at && (
-                      <div className="text-xs text-green-600">
-                        Picked up {formatDate(booking.picked_up_at)}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeClass(booking.status)}`}>
-                      {booking.status.replace(/_/g, ' ').toUpperCase()}
+                    <span className={`ml-2 flex-shrink-0 px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeClass(booking.status)}`}>
+                      {booking.status.replace(/_/g, ' ')}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <Link
-                      href={`/admin/bookings/${booking.id}`}
-                      className="text-primary-green hover:text-primary-dark-green font-medium"
-                    >
-                      View
-                    </Link>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                    <span>{booking.pricing_snapshot?.dumpster_size || '-'} Yard</span>
+                    {booking.dumpster && (
+                      <span>#{booking.dumpster.unit_number}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-gray-500">
+                    <span>Drop: {formatDate(booking.dropoff_scheduled_at)}</span>
+                    <span>Pick: {formatDate(booking.pickup_due_at)}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Customer
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Address
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Dumpster
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Drop-off
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Pick-up
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {bookings.map((booking) => (
+                    <tr key={booking.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {booking.customer?.name || '-'}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {booking.customer?.email || '-'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900 max-w-xs truncate">
+                          {booking.address?.full_address || '-'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {booking.pricing_snapshot?.dumpster_size || '-'} Yard
+                        </div>
+                        {booking.dumpster && (
+                          <div className="text-sm text-gray-500">
+                            #{booking.dumpster.unit_number}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {formatDate(booking.dropoff_scheduled_at)}
+                        </div>
+                        {booking.dropped_at && (
+                          <div className="text-xs text-green-600">
+                            Dropped {formatDate(booking.dropped_at)}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {formatDate(booking.pickup_due_at)}
+                        </div>
+                        {booking.picked_up_at && (
+                          <div className="text-xs text-green-600">
+                            Picked up {formatDate(booking.picked_up_at)}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeClass(booking.status)}`}>
+                          {booking.status.replace(/_/g, ' ').toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <Link
+                          href={`/admin/bookings/${booking.id}`}
+                          className="text-primary-green hover:text-primary-dark-green font-medium"
+                        >
+                          View
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

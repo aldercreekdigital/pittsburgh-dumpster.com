@@ -1,14 +1,9 @@
 import Link from 'next/link'
 import { createAdminClient, DEFAULT_BUSINESS_ID } from '@/lib/supabase/server'
 
-interface CountResult {
-  count: number
-}
-
 async function getDashboardStats() {
   const adminClient = createAdminClient()
 
-  // Get counts for various entities
   const [
     pendingRequests,
     activeBookings,
@@ -104,10 +99,10 @@ export default async function AdminDashboard() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+      <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">Dashboard</h1>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
         <StatCard
           title="Pending Requests"
           value={stats.pendingRequests}
@@ -136,8 +131,8 @@ export default async function AdminDashboard() {
 
       {/* Recent Requests */}
       <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Recent Booking Requests</h2>
+        <div className="px-4 md:px-6 py-4 border-b flex items-center justify-between">
+          <h2 className="text-base md:text-lg font-semibold">Recent Requests</h2>
           <Link
             href="/admin/requests"
             className="text-sm text-primary-green hover:underline"
@@ -151,79 +146,120 @@ export default async function AdminDashboard() {
             No booking requests yet
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Customer
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Size
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Dropoff
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Received
-                  </th>
-                  <th className="px-6 py-3"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {recentRequests.map((request: any) => {
-                  const customer = request.customer as { name: string; email: string } | null
-                  const quote = request.quote as { dumpster_size: number; dropoff_date: string; pricing_snapshot: { total: number } | null } | null
+          <>
+            {/* Mobile Cards */}
+            <div className="md:hidden divide-y">
+              {recentRequests.map((request: any) => {
+                const customer = request.customer as { name: string; email: string } | null
+                const quote = request.quote as { dumpster_size: number; dropoff_date: string; pricing_snapshot: { total: number } | null } | null
 
-                  return (
-                    <tr key={request.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
+                return (
+                  <Link
+                    key={request.id}
+                    href={`/admin/requests/${request.id}`}
+                    className="block p-4 hover:bg-gray-50"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <div className="font-medium text-gray-900">
                           {customer?.name || 'Unknown'}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {customer?.email}
+                          {quote?.dumpster_size} Yard
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {quote?.dumpster_size} Yard
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {quote?.dropoff_date}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      </div>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeClass(request.status)}`}>
+                        {request.status.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">{formatDate(request.created_at)}</span>
+                      <span className="font-medium">
                         {quote?.pricing_snapshot?.total
                           ? formatCents(quote.pricing_snapshot.total)
                           : '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeClass(request.status)}`}>
-                          {request.status.replace(/_/g, ' ')}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(request.created_at)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                        <Link
-                          href={`/admin/requests/${request.id}`}
-                          className="text-primary-green hover:underline"
-                        >
-                          View
-                        </Link>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </span>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Customer
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Size
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Dropoff
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Total
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Received
+                    </th>
+                    <th className="px-6 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {recentRequests.map((request: any) => {
+                    const customer = request.customer as { name: string; email: string } | null
+                    const quote = request.quote as { dumpster_size: number; dropoff_date: string; pricing_snapshot: { total: number } | null } | null
+
+                    return (
+                      <tr key={request.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {customer?.name || 'Unknown'}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {customer?.email}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {quote?.dumpster_size} Yard
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {quote?.dropoff_date}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {quote?.pricing_snapshot?.total
+                            ? formatCents(quote.pricing_snapshot.total)
+                            : '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeClass(request.status)}`}>
+                            {request.status.replace(/_/g, ' ')}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(request.created_at)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                          <Link
+                            href={`/admin/requests/${request.id}`}
+                            className="text-primary-green hover:underline"
+                          >
+                            View
+                          </Link>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -258,10 +294,10 @@ function StatCard({
   return (
     <Link
       href={href}
-      className={`block p-6 rounded-lg border-2 ${colorClasses[color]} hover:shadow-md transition`}
+      className={`block p-4 md:p-6 rounded-lg border-2 ${colorClasses[color]} hover:shadow-md transition`}
     >
-      <div className="text-sm font-medium text-gray-600 mb-1">{title}</div>
-      <div className={`text-3xl font-bold ${valueColorClasses[color]}`}>
+      <div className="text-xs md:text-sm font-medium text-gray-600 mb-1">{title}</div>
+      <div className={`text-2xl md:text-3xl font-bold ${valueColorClasses[color]}`}>
         {value}
       </div>
     </Link>
