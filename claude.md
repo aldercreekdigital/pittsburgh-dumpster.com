@@ -1342,3 +1342,25 @@ Add adjustments overage flow.
 
 END.
 
+PHASE 1 ANSWERS FOR CLAUDE:
+I added keys for stripe and supabase to env.local. anon and service role key have been
+replaced by publishable key and secret key in supabase. be sure to familiarize yourself
+with their usage. 
+
+map provider will be mapbox and i've included api keys in env.local
+
+added my email service key to env.local as well. check mailer.md for
+usage info. 
+
+for seed data: 
+the intiial company's name is McCrackan Roll-Off Service, 412-965-2791,
+"1555 Oakdale Road, Oakdale, PA 15071". use gmurin@icloud.com for email for now for
+testing purposes. For Pricing:
+    3 days included + $25 per extra day
+    15 yard dumpster - $399 1 ton included - $100 per ton after
+    10 yard dumpster - $350 1 ton included - $100 per ton after
+    20 yard dumpster - $500 2 ton inluced - $100 per ton after 
+For radius, we want a polygon that is rougly within an hour or less of oakdale, pa
+Use whatever method works best for you as far as testing
+
+Another thing to note is that we're working with a local supabase instance. its a fresh copy of a new remote project. to create the database we will go into /supabase/migrations/20260102052125_init_schema.sql. place any seed data into /supabase/seed.sql run supabase db reset to apply the migrations and seed data for testing. when done with testing and working as expected advise me when i should run supabase db push to send to remote

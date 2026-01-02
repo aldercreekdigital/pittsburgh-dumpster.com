@@ -1,12 +1,41 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { NAV_LINKS, PHONE_NUMBERS, BUSINESS_INFO } from '@/lib/constants';
+import Image from 'next/image';
+import { createBrowserClient } from '@supabase/ssr';
+import { NAV_LINKS, PHONE_NUMBERS } from '@/lib/constants';
 
 export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
+  useEffect(() => {
+    async function checkAuth() {
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsLoggedIn(!!user);
+      setIsLoading(false);
+    }
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsLoggedIn(!!session?.user);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase.auth]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/';
+  };
 
   return (
     <header className="bg-primary-dark-green text-white sticky top-0 z-50">
@@ -27,28 +56,15 @@ export default function Header() {
       <nav className="container-wide py-4 px-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-primary-light rounded-lg flex items-center justify-center">
-              <svg
-                className="w-8 h-8 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                />
-              </svg>
-            </div>
-            <div>
-              <span className="text-xl font-bold font-heading block leading-tight">
-                McCrackan
-              </span>
-              <span className="text-sm text-gray-300">Roll-Off Services</span>
-            </div>
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/logo-horizontal.png"
+              alt="McCrackan Roll-Off Services"
+              width={200}
+              height={50}
+              className="h-10 md:h-12 w-auto"
+              priority
+            />
           </Link>
 
           {/* Desktop Navigation */}
@@ -93,10 +109,40 @@ export default function Header() {
             )}
           </div>
 
-          {/* CTA Button */}
+          {/* CTA Buttons */}
           <div className="hidden md:flex items-center space-x-4">
-            <Link href="/request-quote" className="btn-primary">
-              Get Free Quote
+            {/* Cart */}
+            <Link
+              href="/cart"
+              className="p-2 hover:text-accent-orange transition relative"
+              title="Cart"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </Link>
+
+            {/* Auth Button */}
+            {!isLoading && (
+              isLoggedIn ? (
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 text-sm border border-white/30 rounded-lg hover:bg-white/10 transition"
+                >
+                  Logout
+                </button>
+              ) : (
+                <Link
+                  href="/login"
+                  className="px-4 py-2 text-sm border border-white/30 rounded-lg hover:bg-white/10 transition"
+                >
+                  Login
+                </Link>
+              )
+            )}
+
+            <Link href="/booking" className="btn-primary">
+              Book Now
             </Link>
           </div>
 
@@ -166,6 +212,39 @@ export default function Header() {
                 )
               )}
               <div className="pt-4 space-y-3">
+                <Link
+                  href="/cart"
+                  className="flex items-center justify-center gap-2 py-3 border border-white/30 rounded-lg"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  Cart
+                </Link>
+
+                {!isLoading && (
+                  isLoggedIn ? (
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="block w-full text-center py-3 border border-white/30 rounded-lg"
+                    >
+                      Logout
+                    </button>
+                  ) : (
+                    <Link
+                      href="/login"
+                      className="block text-center py-3 border border-white/30 rounded-lg"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Login
+                    </Link>
+                  )
+                )}
+
                 <a
                   href={`tel:${PHONE_NUMBERS.tracked.website}`}
                   className="block text-center py-3 bg-primary-green rounded-lg font-bold"
@@ -173,11 +252,11 @@ export default function Header() {
                   Call: {PHONE_NUMBERS.display}
                 </a>
                 <Link
-                  href="/request-quote"
+                  href="/booking"
                   className="btn-primary w-full text-center"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Get Free Quote
+                  Book Now
                 </Link>
               </div>
             </div>

@@ -1,15 +1,69 @@
 import type { Metadata } from 'next';
 import DumpsterCard from '@/components/DumpsterCard/DumpsterCard';
 import CTABanner from '@/components/CTABanner/CTABanner';
+import { DumpsterSelector } from '@/components/DumpsterSelector';
 import { DUMPSTER_SIZES, PROHIBITED_ITEMS } from '@/lib/constants';
+import Link from 'next/link';
+import { decodeBookingData } from '@/lib/booking/stash';
 
 export const metadata: Metadata = {
   title: 'Dumpster Sizes & Pricing | McCrackan Roll-Off Services',
   description:
-    'Choose from 10, 20, 30, and 40 yard dumpsters. Competitive pricing with no hidden fees. Same-day delivery available in Western PA, WV & OH.',
+    'Choose from 10, 15, 20, 30, and 40 yard dumpsters. Competitive pricing with no hidden fees. Same-day delivery available in Western PA, WV & OH.',
 };
 
-export default function DumpsterSizesPage() {
+interface PageProps {
+  searchParams: Promise<{ data?: string }>;
+}
+
+export default async function DumpsterSizesPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const encodedData = params.data;
+
+  // If there's stashed booking data, show the booking flow
+  if (encodedData) {
+    const stashedData = decodeBookingData(encodedData);
+
+    if (!stashedData || !stashedData.address) {
+      // Invalid data - redirect to booking
+      return (
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold mb-4">Invalid booking data</h1>
+            <p className="text-gray-600 mb-6">Please start your booking again.</p>
+            <Link href="/booking" className="btn-primary">
+              Start Booking
+            </Link>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {/* Hero Section */}
+        <section className="bg-gradient-industrial text-white section-padding">
+          <div className="container-wide">
+            <div className="max-w-3xl mx-auto text-center">
+              <h1 className="text-white mb-4">Configure Your Rental</h1>
+              <p className="text-xl text-gray-300">
+                Select your dumpster size and rental dates to see your total price.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Booking Flow */}
+        <section className="section-padding bg-off-white">
+          <div className="container-wide max-w-3xl">
+            <DumpsterSelector stashedAddress={stashedData.address} />
+          </div>
+        </section>
+      </>
+    );
+  }
+
+  // Default: Show informational content
   return (
     <>
       {/* Hero Section */}
@@ -17,9 +71,12 @@ export default function DumpsterSizesPage() {
         <div className="container-wide">
           <div className="max-w-3xl">
             <h1 className="text-white mb-4">Dumpster Sizes & Pricing</h1>
-            <p className="text-xl text-gray-300">
+            <p className="text-xl text-gray-300 mb-6">
               Find the perfect dumpster size for your project. From small cleanouts to major construction, we have you covered.
             </p>
+            <Link href="/booking" className="btn-primary">
+              Get Started - Enter Your Address
+            </Link>
           </div>
         </div>
       </section>
@@ -147,8 +204,9 @@ export default function DumpsterSizesPage() {
 
       {/* CTA */}
       <CTABanner
-        title="Need Help Choosing?"
-        subtitle="Our team can help you select the perfect dumpster size for your project. Get a free quote today!"
+        title="Ready to Book?"
+        subtitle="Enter your address to check availability and get an instant quote!"
+        primaryCTA={{ text: 'Start Booking', href: '/booking' }}
       />
     </>
   );

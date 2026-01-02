@@ -52,7 +52,7 @@ export const DUMPSTER_SIZES = [
     idealFor: ['Small remodels', 'Garage cleanout', 'Deck removal', 'Small landscaping'],
     capacity: '3-4 pickup truck loads',
     weight: '2 ton limit',
-    rentalPeriod: '7 days included',
+    rentalPeriod: '3 days included',
     popular: false,
   },
   {
@@ -63,7 +63,7 @@ export const DUMPSTER_SIZES = [
     idealFor: ['Kitchen remodel', 'Bathroom renovation', 'Roofing (up to 25 sq)', 'Medium cleanout'],
     capacity: '6-8 pickup truck loads',
     weight: '3 ton limit',
-    rentalPeriod: '7 days included',
+    rentalPeriod: '3 days included',
     popular: true,
   },
   {
