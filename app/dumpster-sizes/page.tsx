@@ -2,18 +2,105 @@ import type { Metadata } from 'next';
 import DumpsterCard from '@/components/DumpsterCard/DumpsterCard';
 import CTABanner from '@/components/CTABanner/CTABanner';
 import { DumpsterSelector } from '@/components/DumpsterSelector';
-import { DUMPSTER_SIZES, PROHIBITED_ITEMS } from '@/lib/constants';
+import { DUMPSTER_SIZES, DUMPSTER_SIZE_METADATA, PROHIBITED_ITEMS } from '@/lib/constants';
 import Link from 'next/link';
 import { decodeBookingData } from '@/lib/booking/stash';
+import { createAdminClient, DEFAULT_BUSINESS_ID } from '@/lib/supabase/server';
 
 export const metadata: Metadata = {
   title: 'Dumpster Sizes & Pricing | McCrackan Roll-Off Services',
   description:
-    'Choose from 10, 15, 20, 30, and 40 yard dumpsters. Competitive pricing with no hidden fees. Same-day delivery available in Western PA, WV & OH.',
+    'Choose from 10, 15, and 20 yard dumpsters. Competitive pricing with no hidden fees. Same-day delivery available in Western PA, WV & OH.',
 };
 
 interface PageProps {
   searchParams: Promise<{ data?: string }>;
+}
+
+interface DumpsterData {
+  size: string
+  sizeNum: number
+  dimensions: string
+  description: string
+  priceRange: string
+  idealFor: string[]
+  capacity: string
+  weight: string
+  rentalPeriod: string
+  popular: boolean
+}
+
+interface PricingRule {
+  dumpster_size: number
+  base_price: number
+  included_days: number
+  included_tons: string | number
+  public_notes: string | null
+}
+
+async function getDumpsterSizes(): Promise<DumpsterData[]> {
+  try {
+    const supabase = createAdminClient()
+
+    const { data, error } = await supabase
+      .from('pricing_rules')
+      .select('dumpster_size, base_price, included_days, included_tons, public_notes')
+      .eq('business_id', DEFAULT_BUSINESS_ID)
+      .eq('active', true)
+      .order('dumpster_size', { ascending: true })
+
+    const rules = data as PricingRule[] | null
+
+    if (error || !rules || rules.length === 0) {
+      // Fallback to static data
+      return DUMPSTER_SIZES.map(d => ({
+        ...d,
+        sizeNum: parseInt(d.size),
+      }))
+    }
+
+    // Group by dumpster size and get unique sizes
+    const sizeMap = new Map<number, PricingRule>()
+    for (const rule of rules) {
+      if (!sizeMap.has(rule.dumpster_size)) {
+        sizeMap.set(rule.dumpster_size, rule)
+      }
+    }
+
+    // Build display data from database
+    return Array.from(sizeMap.entries()).map(([sizeNum, rule]) => {
+      const metadata = DUMPSTER_SIZE_METADATA[sizeNum] || {
+        dimensions: "Standard dimensions",
+        description: rule.public_notes || 'Professional dumpster rental service.',
+        idealFor: ['General cleanup', 'Renovation projects'],
+        capacity: 'Multiple pickup truck loads',
+        popular: false,
+      }
+
+      const priceInDollars = rule.base_price / 100
+      const includedTons = Number(rule.included_tons)
+
+      return {
+        size: `${sizeNum} Yard`,
+        sizeNum,
+        dimensions: metadata.dimensions,
+        description: rule.public_notes || metadata.description,
+        priceRange: `$${priceInDollars}`,
+        idealFor: metadata.idealFor,
+        capacity: metadata.capacity,
+        weight: `${includedTons} ton${includedTons > 1 ? 's' : ''} included`,
+        rentalPeriod: `${rule.included_days} days included`,
+        popular: metadata.popular,
+      }
+    })
+  } catch (error) {
+    console.error('Error fetching dumpster sizes:', error)
+    // Fallback to static data
+    return DUMPSTER_SIZES.map(d => ({
+      ...d,
+      sizeNum: parseInt(d.size),
+    }))
+  }
 }
 
 export default async function DumpsterSizesPage({ searchParams }: PageProps) {
@@ -63,6 +150,9 @@ export default async function DumpsterSizesPage({ searchParams }: PageProps) {
     );
   }
 
+  // Fetch live dumpster data
+  const dumpsters = await getDumpsterSizes()
+
   // Default: Show informational content
   return (
     <>
@@ -72,7 +162,7 @@ export default async function DumpsterSizesPage({ searchParams }: PageProps) {
           <div className="max-w-3xl">
             <h1 className="text-white mb-4">Dumpster Sizes & Pricing</h1>
             <p className="text-xl text-gray-300 mb-6">
-              Find the perfect dumpster size for your project. From small cleanouts to major construction, we have you covered.
+              Find the perfect dumpster size for your project. From small cleanouts to major renovations, we have you covered.
             </p>
             <Link href="/booking" className="btn-primary">
               Get Started - Enter Your Address
@@ -84,8 +174,8 @@ export default async function DumpsterSizesPage({ searchParams }: PageProps) {
       {/* Dumpster Sizes Grid */}
       <section className="section-padding bg-off-white">
         <div className="container-wide">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {DUMPSTER_SIZES.map((dumpster) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {dumpsters.map((dumpster) => (
               <DumpsterCard key={dumpster.size} {...dumpster} />
             ))}
           </div>
@@ -104,13 +194,13 @@ export default async function DumpsterSizesPage({ searchParams }: PageProps) {
                   <th className="px-6 py-4 text-left">Size</th>
                   <th className="px-6 py-4 text-left">Dimensions</th>
                   <th className="px-6 py-4 text-left">Capacity</th>
-                  <th className="px-6 py-4 text-left">Weight Limit</th>
+                  <th className="px-6 py-4 text-left">Weight Included</th>
                   <th className="px-6 py-4 text-left">Rental Period</th>
-                  <th className="px-6 py-4 text-left">Price Range</th>
+                  <th className="px-6 py-4 text-left">Starting Price</th>
                 </tr>
               </thead>
               <tbody>
-                {DUMPSTER_SIZES.map((dumpster, index) => (
+                {dumpsters.map((dumpster, index) => (
                   <tr
                     key={dumpster.size}
                     className={`border-b ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${
@@ -141,12 +231,12 @@ export default async function DumpsterSizesPage({ searchParams }: PageProps) {
         <div className="container-wide">
           <h2 className="text-center mb-12">What Fits in Each Size?</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {DUMPSTER_SIZES.map((dumpster) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {dumpsters.map((dumpster) => (
               <div key={dumpster.size} className="card-industrial p-6">
                 <h3 className="text-xl font-bold mb-4 flex items-center">
                   <span className="w-10 h-10 bg-primary-light/10 rounded-full flex items-center justify-center mr-3 text-sm font-bold text-primary-green">
-                    {dumpster.size.split(' ')[0]}
+                    {dumpster.sizeNum}
                   </span>
                   {dumpster.size} Dumpster
                 </h3>

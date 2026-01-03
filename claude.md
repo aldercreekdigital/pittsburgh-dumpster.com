@@ -1367,3 +1367,12 @@ Another thing to note is that we're working with a local supabase instance. its 
 
 # 17. Admin Manual Booking Creation Feature
 Requirement: The admin dashboard should have a section where the user can manually create a booking with the same details found in the customer facing booking creation. It should follow the same steps so that the admin user can enter the address to check serviceability, enter dumpster details (size, date, days rental), and enter user info (name, email, phone number). we will need to check current users and ensure that the user is registered to send payment link. if the user is not registered we will need to store the user details and send them an email with a quote as well as a link to register after they've registered they should be redirected to the payment link. 
+
+
+TODO:
+-Fix hero section h1 text to be white (currently a dark green) ex the hero on the home page reads Dumpster Rental Services for Western PA, WV & OH in dark green text on a dark green bg as do all other heroes. some of the h2's and h3's are on a dark green background as well with dark green text. must ensure that they are not on a white bg though because some are. ex: the h2's and h3's in the how it works section of the home page are green on a green bg and unable to be read while the service are map has h2 and h3 on white bg that are easily read and look great
+
+- Update the service area map on the home page to use mapbox to generate the map with the service area polygon that we defined for the business. do the same for the map on /service-area
+
+- /dumpster-sizes should be using live data to populate this section as well. if we need to add to the database let me know and we can create a migration and seed this data
+

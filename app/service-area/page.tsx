@@ -28,7 +28,7 @@ export default function ServiceAreaPage() {
       {/* Interactive Map */}
       <section className="section-padding">
         <div className="container-wide">
-          <ServiceAreaMap showFullDetails={true} />
+          <ServiceAreaMap showFullDetails={true} height="h-80 md:h-96 lg:h-[500px]" />
         </div>
       </section>
 

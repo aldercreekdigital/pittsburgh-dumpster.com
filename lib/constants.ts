@@ -42,50 +42,70 @@ export const NAV_LINKS = [
   { href: '/contact', label: 'Contact' },
 ];
 
-// Dumpster Sizes Data
+// Dumpster Sizes Metadata (static content - prices come from database)
+export const DUMPSTER_SIZE_METADATA: Record<number, {
+  dimensions: string
+  description: string
+  idealFor: string[]
+  capacity: string
+  popular: boolean
+}> = {
+  10: {
+    dimensions: "12'L x 8'W x 4'H",
+    description: 'Perfect for small renovations, garage cleanouts, and minor landscaping projects.',
+    idealFor: ['Small remodels', 'Garage cleanout', 'Deck removal', 'Small landscaping'],
+    capacity: '3-4 pickup truck loads',
+    popular: false,
+  },
+  15: {
+    dimensions: "14'L x 8'W x 4'H",
+    description: 'Great for medium-sized cleanouts, single room renovations, and yard debris.',
+    idealFor: ['Medium cleanout', 'Single room renovation', 'Yard debris', 'Small roofing'],
+    capacity: '4-5 pickup truck loads',
+    popular: true,
+  },
+  20: {
+    dimensions: "22'L x 8'W x 4'H",
+    description: 'Our largest size for kitchen/bath remodels, larger roofing projects, and major cleanouts.',
+    idealFor: ['Kitchen remodel', 'Bathroom renovation', 'Roofing projects', 'Large cleanout'],
+    capacity: '6-8 pickup truck loads',
+    popular: false,
+  },
+}
+
+// Fallback static data (used when database is unavailable)
 export const DUMPSTER_SIZES = [
   {
     size: '10 Yard',
     dimensions: "12'L x 8'W x 4'H",
     description: 'Perfect for small renovations, garage cleanouts, and minor landscaping projects.',
-    priceRange: '$299-$399',
+    priceRange: '$350',
     idealFor: ['Small remodels', 'Garage cleanout', 'Deck removal', 'Small landscaping'],
     capacity: '3-4 pickup truck loads',
-    weight: '2 ton limit',
+    weight: '1 ton included',
     rentalPeriod: '3 days included',
     popular: false,
   },
   {
-    size: '20 Yard',
-    dimensions: "22'L x 8'W x 4'H",
-    description: 'Our most popular size for kitchen/bath remodels, roofing projects, and medium cleanouts.',
-    priceRange: '$399-$499',
-    idealFor: ['Kitchen remodel', 'Bathroom renovation', 'Roofing (up to 25 sq)', 'Medium cleanout'],
-    capacity: '6-8 pickup truck loads',
-    weight: '3 ton limit',
+    size: '15 Yard',
+    dimensions: "14'L x 8'W x 4'H",
+    description: 'Great for medium-sized cleanouts, single room renovations, and yard debris.',
+    priceRange: '$399',
+    idealFor: ['Medium cleanout', 'Single room renovation', 'Yard debris', 'Small roofing'],
+    capacity: '4-5 pickup truck loads',
+    weight: '1 ton included',
     rentalPeriod: '3 days included',
     popular: true,
   },
   {
-    size: '30 Yard',
-    dimensions: "22'L x 8'W x 6'H",
-    description: 'Great for new construction, large demolition, and major renovation projects.',
-    priceRange: '$499-$599',
-    idealFor: ['New construction', 'Large demolition', 'Whole house cleanout', 'Commercial projects'],
-    capacity: '9-12 pickup truck loads',
-    weight: '4 ton limit',
-    rentalPeriod: '10 days included',
-    popular: false,
-  },
-  {
-    size: '40 Yard',
-    dimensions: "22'L x 8'W x 8'H",
-    description: 'Our largest container for major construction, commercial projects, and large-scale demolition.',
-    priceRange: '$599-$749',
-    idealFor: ['Major construction', 'Commercial renovation', 'Industrial projects', 'Large demolition'],
-    capacity: '12-16 pickup truck loads',
-    weight: '5 ton limit',
-    rentalPeriod: '14 days included',
+    size: '20 Yard',
+    dimensions: "22'L x 8'W x 4'H",
+    description: 'Our largest size for kitchen/bath remodels, larger roofing projects, and major cleanouts.',
+    priceRange: '$500',
+    idealFor: ['Kitchen remodel', 'Bathroom renovation', 'Roofing projects', 'Large cleanout'],
+    capacity: '6-8 pickup truck loads',
+    weight: '2 tons included',
+    rentalPeriod: '3 days included',
     popular: false,
   },
 ];
