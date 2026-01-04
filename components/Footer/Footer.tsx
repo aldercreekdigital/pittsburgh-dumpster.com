@@ -145,12 +145,23 @@ export default function Footer() {
       {/* Bottom Bar */}
       <div className="border-t border-primary-green/30">
         <div className="container-wide py-6 px-4 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-gray-400 text-sm text-center md:text-left">
-            &copy; {new Date().getFullYear()} {BUSINESS_INFO.name}. All rights reserved.
-            <br className="md:hidden" />
-            <span className="hidden md:inline"> | </span>
-            A division of {BUSINESS_INFO.parentBrand}
-          </p>
+          <div className="text-gray-400 text-sm text-center md:text-left">
+            <p>
+              &copy; {new Date().getFullYear()} {BUSINESS_INFO.name}. All rights reserved.
+              <br className="md:hidden" />
+              <span className="hidden md:inline"> | </span>
+              A division of {BUSINESS_INFO.parentBrand}
+            </p>
+            <p className="mt-2">
+              <Link href="/privacy" className="hover:text-white transition">
+                Privacy Policy
+              </Link>
+              <span className="mx-2">|</span>
+              <Link href="/terms" className="hover:text-white transition">
+                Terms of Service
+              </Link>
+            </p>
+          </div>
           <div className="flex items-center space-x-4">
             <a
               href="#"
