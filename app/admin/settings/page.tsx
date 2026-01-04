@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import ServiceAreaEditor from '@/components/ServiceAreaEditor/ServiceAreaEditor'
 
 interface BusinessSettings {
   quote_expiration_days: number
@@ -498,6 +499,11 @@ export default function SettingsPage() {
             placeholder="Enter your terms and conditions..."
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
           />
+        </div>
+
+        {/* Service Area */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <ServiceAreaEditor />
         </div>
 
         {/* Info Box */}

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { BUSINESS_INFO, PHONE_NUMBERS, HOURS } from '@/lib/constants';
+import ServiceAreaMap from '@/components/ServiceAreaMap/ServiceAreaMap';
 
 export const metadata: Metadata = {
   title: 'Contact Us | McCrackan Roll-Off Services',
@@ -251,24 +252,10 @@ export default function ContactPage() {
         </div>
       </section>
 
-      {/* Map Placeholder */}
+      {/* Service Area Map */}
       <section className="section-padding bg-off-white">
         <div className="container-wide">
-          <div className="card-industrial p-8">
-            <h2 className="text-center mb-8">Service Area</h2>
-            <div className="h-80 bg-light-gray rounded-lg flex items-center justify-center">
-              <div className="text-center">
-                <svg className="w-16 h-16 mx-auto text-steel-gray opacity-50 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <p className="text-gray-600">Serving Western PA, Northern WV & Eastern OH</p>
-                <Link href="/service-area" className="text-primary-green hover:underline mt-2 inline-block">
-                  View our full service area →
-                </Link>
-              </div>
-            </div>
-          </div>
+          <ServiceAreaMap />
         </div>
       </section>
     </>
