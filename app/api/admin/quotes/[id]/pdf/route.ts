@@ -16,10 +16,16 @@ interface PricingSnapshot {
   overage_per_ton: number
   rental_days: number
   extra_days: number
+  extended_service_fee: number
   subtotal: number
+  taxable_amount: number
+  tax_rate: number
+  tax_amount: number
+  processing_fee: number
   total: number
   dumpster_size: number
   waste_type: string
+  tax_exempt: boolean
 }
 
 interface QuoteData {
@@ -32,7 +38,7 @@ interface QuoteData {
   pricing_snapshot: PricingSnapshot | null
   created_at: string
   address: { full_address: string } | null
-  line_items: { label: string; amount: number }[]
+  line_items: { label: string; amount: number; line_type: string }[]
 }
 
 export async function GET(request: NextRequest, context: RouteContext) {
@@ -52,7 +58,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         pricing_snapshot,
         created_at,
         address:addresses(full_address),
-        line_items:quote_line_items(label, amount)
+        line_items:quote_line_items(label, amount, line_type)
       `)
       .eq('id', id)
       .eq('business_id', DEFAULT_BUSINESS_ID)
@@ -86,9 +92,17 @@ export async function GET(request: NextRequest, context: RouteContext) {
       pickupDate: quote.pickup_date,
       rentalDays: pricing.rental_days,
       includedTons: pricing.included_tons,
-      lineItems: quote.line_items,
+      lineItems: quote.line_items.map(item => ({
+        label: item.label,
+        amount: item.amount,
+        type: item.line_type,
+      })),
+      subtotal: pricing.subtotal,
+      taxAmount: pricing.tax_amount,
+      processingFee: pricing.processing_fee,
       total: pricing.total,
       overagePerTon: pricing.overage_per_ton,
+      taxExempt: pricing.tax_exempt,
     })
 
     return new Response(pdfBuffer, {

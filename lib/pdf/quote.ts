@@ -3,6 +3,8 @@ import { jsPDF } from 'jspdf'
 interface LineItem {
   label: string
   amount: number
+  type?: string
+  taxable?: boolean
 }
 
 interface QuotePdfData {
@@ -18,8 +20,12 @@ interface QuotePdfData {
   rentalDays: number
   includedTons: number
   lineItems: LineItem[]
+  subtotal: number
+  taxAmount: number
+  processingFee: number
   total: number
   overagePerTon: number
+  taxExempt?: boolean
 }
 
 function formatCurrency(cents: number): string {
@@ -132,14 +138,40 @@ export function generateQuotePdf(data: QuotePdfData): ArrayBuffer {
   doc.text('Pricing', 20, y)
   y += 10
 
-  // Line items
+  // Line items (excluding tax and processing fee - shown separately)
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
-  data.lineItems.forEach((item) => {
+  const serviceLineItems = data.lineItems.filter(item =>
+    item.type !== 'tax' && item.type !== 'processing_fee'
+  )
+  serviceLineItems.forEach((item) => {
     doc.text(item.label, 25, y)
     doc.text(formatCurrency(item.amount), pageWidth - 25, y, { align: 'right' })
     y += 7
   })
+
+  // Subtotal
+  y += 3
+  doc.setDrawColor(200, 200, 200)
+  doc.line(20, y, pageWidth - 20, y)
+  y += 8
+  doc.text('Subtotal:', 100, y)
+  doc.text(formatCurrency(data.subtotal || data.total - (data.taxAmount || 0) - (data.processingFee || 0)), pageWidth - 25, y, { align: 'right' })
+  y += 7
+
+  // Tax (if applicable)
+  if (!data.taxExempt && data.taxAmount && data.taxAmount > 0) {
+    doc.text('PA Sales Tax (7%):', 100, y)
+    doc.text(formatCurrency(data.taxAmount), pageWidth - 25, y, { align: 'right' })
+    y += 7
+  }
+
+  // Processing Fee (if applicable)
+  if (data.processingFee && data.processingFee > 0) {
+    doc.text('Card Processing Fee:', 100, y)
+    doc.text(formatCurrency(data.processingFee), pageWidth - 25, y, { align: 'right' })
+    y += 7
+  }
 
   // Separator
   y += 3

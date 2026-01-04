@@ -17,10 +17,16 @@ interface PricingSnapshot {
   overage_per_ton: number
   rental_days: number
   extra_days: number
+  extended_service_fee: number
   subtotal: number
+  taxable_amount: number
+  tax_rate: number
+  tax_amount: number
+  processing_fee: number
   total: number
   dumpster_size: number
   waste_type: string
+  tax_exempt: boolean
 }
 
 interface LineItem {

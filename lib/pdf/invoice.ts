@@ -5,6 +5,7 @@ interface LineItem {
   quantity: number
   unit_price: number
   amount: number
+  line_type?: string
 }
 
 interface InvoicePdfData {
@@ -17,8 +18,11 @@ interface InvoicePdfData {
   address: string
   lineItems: LineItem[]
   subtotal: number
+  taxAmount?: number
+  processingFee?: number
   total: number
   paidAt?: string
+  taxExempt?: boolean
 }
 
 function formatCurrency(cents: number): string {
@@ -118,9 +122,12 @@ export function generateInvoicePdf(data: InvoicePdfData): ArrayBuffer {
   doc.setTextColor(0, 0, 0)
   y += 8
 
-  // Line items
+  // Line items (excluding tax and processing fee - shown in totals section)
   doc.setFont('helvetica', 'normal')
-  data.lineItems.forEach((item) => {
+  const serviceLineItems = data.lineItems.filter(item =>
+    item.line_type !== 'tax' && item.line_type !== 'processing_fee'
+  )
+  serviceLineItems.forEach((item) => {
     doc.text(item.label, 20, y)
     doc.text(item.quantity.toString(), 110, y, { align: 'center' })
     doc.text(formatCurrency(item.unit_price), 140, y, { align: 'right' })
@@ -139,6 +146,20 @@ export function generateInvoicePdf(data: InvoicePdfData): ArrayBuffer {
   doc.text('Subtotal:', 130, y, { align: 'right' })
   doc.text(formatCurrency(data.subtotal), pageWidth - 20, y, { align: 'right' })
   y += 8
+
+  // Tax (if applicable)
+  if (!data.taxExempt && data.taxAmount && data.taxAmount > 0) {
+    doc.text('PA Sales Tax (7%):', 130, y, { align: 'right' })
+    doc.text(formatCurrency(data.taxAmount), pageWidth - 20, y, { align: 'right' })
+    y += 8
+  }
+
+  // Processing Fee (if applicable)
+  if (data.processingFee && data.processingFee > 0) {
+    doc.text('Card Processing Fee:', 130, y, { align: 'right' })
+    doc.text(formatCurrency(data.processingFee), pageWidth - 20, y, { align: 'right' })
+    y += 8
+  }
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(12)

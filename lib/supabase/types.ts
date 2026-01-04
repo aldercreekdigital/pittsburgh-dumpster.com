@@ -92,6 +92,8 @@ export interface Database {
           name: string
           email: string
           phone: string | null
+          tax_exempt: boolean
+          tax_exempt_certificate: string | null
           created_at: string
         }
         Insert: {
@@ -101,6 +103,8 @@ export interface Database {
           name: string
           email: string
           phone?: string | null
+          tax_exempt?: boolean
+          tax_exempt_certificate?: string | null
           created_at?: string
         }
         Update: {
@@ -110,6 +114,8 @@ export interface Database {
           name?: string
           email?: string
           phone?: string | null
+          tax_exempt?: boolean
+          tax_exempt_certificate?: string | null
           created_at?: string
         }
       }
@@ -283,7 +289,7 @@ export interface Database {
           quote_id: string
           label: string
           amount: number
-          line_type: 'base' | 'delivery' | 'haul' | 'extra_days' | 'tax' | 'discount' | 'adjustment'
+          line_type: 'base' | 'rental' | 'delivery' | 'haul' | 'extra_days' | 'extended_service' | 'tax' | 'processing_fee' | 'discount' | 'adjustment' | 'overage'
           sort_order: number
           created_at: string
         }
@@ -292,7 +298,7 @@ export interface Database {
           quote_id: string
           label: string
           amount: number
-          line_type?: 'base' | 'delivery' | 'haul' | 'extra_days' | 'tax' | 'discount' | 'adjustment'
+          line_type?: 'base' | 'rental' | 'delivery' | 'haul' | 'extra_days' | 'extended_service' | 'tax' | 'processing_fee' | 'discount' | 'adjustment' | 'overage'
           sort_order?: number
           created_at?: string
         }
@@ -301,7 +307,7 @@ export interface Database {
           quote_id?: string
           label?: string
           amount?: number
-          line_type?: 'base' | 'delivery' | 'haul' | 'extra_days' | 'tax' | 'discount' | 'adjustment'
+          line_type?: 'base' | 'rental' | 'delivery' | 'haul' | 'extra_days' | 'extended_service' | 'tax' | 'processing_fee' | 'discount' | 'adjustment' | 'overage'
           sort_order?: number
           created_at?: string
         }
@@ -509,7 +515,7 @@ export interface Database {
           quantity: number
           unit_price: number
           amount: number
-          line_type: 'base' | 'delivery' | 'haul' | 'extra_days' | 'tax' | 'discount' | 'adjustment'
+          line_type: 'base' | 'rental' | 'delivery' | 'haul' | 'extra_days' | 'extended_service' | 'tax' | 'processing_fee' | 'discount' | 'adjustment' | 'overage'
           created_at: string
         }
         Insert: {
@@ -519,7 +525,7 @@ export interface Database {
           quantity?: number
           unit_price: number
           amount: number
-          line_type?: 'base' | 'delivery' | 'haul' | 'extra_days' | 'tax' | 'discount' | 'adjustment'
+          line_type?: 'base' | 'rental' | 'delivery' | 'haul' | 'extra_days' | 'extended_service' | 'tax' | 'processing_fee' | 'discount' | 'adjustment' | 'overage'
           created_at?: string
         }
         Update: {
@@ -529,7 +535,7 @@ export interface Database {
           quantity?: number
           unit_price?: number
           amount?: number
-          line_type?: 'base' | 'delivery' | 'haul' | 'extra_days' | 'tax' | 'discount' | 'adjustment'
+          line_type?: 'base' | 'rental' | 'delivery' | 'haul' | 'extra_days' | 'extended_service' | 'tax' | 'processing_fee' | 'discount' | 'adjustment' | 'overage'
           created_at?: string
         }
       }

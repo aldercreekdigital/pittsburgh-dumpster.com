@@ -9,19 +9,27 @@ interface RouteParams {
 
 interface PricingSnapshot {
   total: number
+  subtotal: number
   base_price: number
   delivery_fee: number
   haul_fee: number
   extra_days: number
   extra_day_fee: number
+  extended_service_fee: number
+  taxable_amount: number
+  tax_rate: number
+  tax_amount: number
+  processing_fee: number
   dumpster_size: number
   waste_type: string
+  tax_exempt: boolean
 }
 
 interface LineItem {
   label: string
   amount: number
   sort_order: number
+  line_type: string
 }
 
 interface BookingRequestData {
@@ -75,7 +83,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           dropoff_date,
           pickup_date,
           address:addresses(full_address),
-          line_items:quote_line_items(label, amount, sort_order)
+          line_items:quote_line_items(label, amount, sort_order, line_type)
         ),
         customer:customers(id, name, email)
       `)
@@ -134,7 +142,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    // 3. Create invoice
+    // 3. Create invoice (subtotal is before tax+processing, total includes everything)
     const { data: invoice, error: invoiceError } = await adminClient
       .from('invoices')
       .insert({
@@ -144,7 +152,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         invoice_number: nextInvoiceNumber.toString(),
         status: 'unpaid',
         issued_at: new Date().toISOString(),
-        subtotal: quote.pricing_snapshot.total,
+        subtotal: quote.pricing_snapshot.subtotal || quote.pricing_snapshot.total,
         total: quote.pricing_snapshot.total,
       } as never)
       .select('id, invoice_number')
@@ -160,7 +168,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const invoiceRecord = invoice as { id: string; invoice_number: string }
 
-    // 4. Create invoice line items
+    // 4. Create invoice line items (preserving line_type from quote)
     const lineItems = quote.line_items || []
     for (const item of lineItems) {
       const { error: lineItemError } = await adminClient
@@ -171,7 +179,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           quantity: 1,
           unit_price: item.amount,
           amount: item.amount,
-          line_type: 'base',
+          line_type: item.line_type || 'base',
         } as never)
 
       if (lineItemError) {

@@ -155,14 +155,20 @@ export async function POST(request: NextRequest) {
       pricing: {
         total: snapshot.total,
         subtotal: snapshot.subtotal,
+        taxableAmount: snapshot.taxable_amount,
+        taxAmount: snapshot.tax_amount,
+        taxRate: snapshot.tax_rate,
+        processingFee: snapshot.processing_fee,
         rentalDays: snapshot.rental_days,
         extraDays: snapshot.extra_days,
+        extendedServiceFee: snapshot.extended_service_fee,
         includedDays: snapshot.included_days,
         includedTons: snapshot.included_tons,
         lineItems: lineItems.map(item => ({
           label: item.label,
           amount: item.amount,
           type: item.type,
+          taxable: item.taxable,
         })),
       },
     })

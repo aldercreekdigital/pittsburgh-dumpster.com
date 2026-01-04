@@ -18,10 +18,16 @@ interface PricingSnapshot {
   overage_per_ton: number
   rental_days: number
   extra_days: number
+  extended_service_fee: number
   subtotal: number
+  taxable_amount: number
+  tax_rate: number
+  tax_amount: number
+  processing_fee: number
   total: number
   dumpster_size: number
   waste_type: string
+  tax_exempt: boolean
 }
 
 interface BookingData {
@@ -377,15 +383,39 @@ export default async function BookingDetailPage({ params }: PageProps) {
               <>
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Base Price</span>
+                    <span className="text-gray-600">Dumpster Rental ({booking.pricing_snapshot.included_days} days)</span>
                     <span className="font-medium">{formatCents(booking.pricing_snapshot.base_price)}</span>
                   </div>
+                  {booking.pricing_snapshot.delivery_fee > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Delivery Fee</span>
+                      <span className="font-medium">{formatCents(booking.pricing_snapshot.delivery_fee)}</span>
+                    </div>
+                  )}
+                  {booking.pricing_snapshot.haul_fee > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Disposal Fee</span>
+                      <span className="font-medium">{formatCents(booking.pricing_snapshot.haul_fee)}</span>
+                    </div>
+                  )}
                   {booking.pricing_snapshot.extra_days > 0 && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Extra Days ({booking.pricing_snapshot.extra_days})</span>
+                      <span className="text-gray-600">Extended Service Days ({booking.pricing_snapshot.extra_days})</span>
                       <span className="font-medium">
-                        {formatCents(booking.pricing_snapshot.extra_days * booking.pricing_snapshot.extra_day_fee)}
+                        {formatCents(booking.pricing_snapshot.extended_service_fee || booking.pricing_snapshot.extra_days * booking.pricing_snapshot.extra_day_fee)}
                       </span>
+                    </div>
+                  )}
+                  {booking.pricing_snapshot.tax_amount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">PA Sales Tax (7%)</span>
+                      <span className="font-medium">{formatCents(booking.pricing_snapshot.tax_amount)}</span>
+                    </div>
+                  )}
+                  {booking.pricing_snapshot.processing_fee > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Card Processing Fee</span>
+                      <span className="font-medium">{formatCents(booking.pricing_snapshot.processing_fee)}</span>
                     </div>
                   )}
                 </div>

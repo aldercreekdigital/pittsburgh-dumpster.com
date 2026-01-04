@@ -231,6 +231,7 @@ export async function POST(request: NextRequest) {
           quote_id: quoteId,
           label: item.label,
           amount: item.amount,
+          line_type: item.type,
           sort_order: item.sort_order,
         } as never)
     }

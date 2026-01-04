@@ -14,7 +14,7 @@ interface InvoiceData {
   subtotal: number
   total: number
   created_at: string
-  customer: { name: string; email: string; phone: string } | null
+  customer: { name: string; email: string; phone: string; tax_exempt: boolean } | null
   booking: {
     address: { full_address: string } | null
   } | null
@@ -23,6 +23,7 @@ interface InvoiceData {
     quantity: number
     unit_price: number
     amount: number
+    line_type: string
   }[]
   payments: { created_at: string }[]
 }
@@ -42,11 +43,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
         subtotal,
         total,
         created_at,
-        customer:customers(name, email, phone),
+        customer:customers(name, email, phone, tax_exempt),
         booking:bookings(
           address:addresses(full_address)
         ),
-        line_items:invoice_line_items(label, quantity, unit_price, amount),
+        line_items:invoice_line_items(label, quantity, unit_price, amount, line_type),
         payments(created_at)
       `)
       .eq('id', id)
@@ -63,6 +64,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const invoice = data as InvoiceData
     const paidPayment = invoice.payments.find((p) => p.created_at)
 
+    // Extract tax and processing fee from line items
+    const taxItem = invoice.line_items.find(item => item.line_type === 'tax')
+    const processingFeeItem = invoice.line_items.find(item => item.line_type === 'processing_fee')
+
     const pdfBuffer = generateInvoicePdf({
       invoiceNumber: invoice.invoice_number,
       status: invoice.status,
@@ -73,8 +78,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
       address: invoice.booking?.address?.full_address || 'N/A',
       lineItems: invoice.line_items,
       subtotal: invoice.subtotal,
+      taxAmount: taxItem?.amount,
+      processingFee: processingFeeItem?.amount,
       total: invoice.total,
       paidAt: paidPayment?.created_at,
+      taxExempt: invoice.customer?.tax_exempt,
     })
 
     return new Response(pdfBuffer, {

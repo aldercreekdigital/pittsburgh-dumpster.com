@@ -6,7 +6,19 @@
  * - Rental dates (dropoff and pickup)
  *
  * All money values are in cents (integers). Never use floats for money.
+ *
+ * Tax Rules (PA-Compliant - Waste Management Model):
+ * - TAXABLE: Container rental only (base_price)
+ * - NON-TAXABLE: Delivery, Haul/Disposal, Extended Service Days, Overages
+ * - Language: Use "Extended Service Days" not "Extra Rental Days"
  */
+
+// Tax rate for PA (7% = state 6% + Allegheny County 1%)
+export const PA_TAX_RATE = 0.07
+
+// Stripe fee structure
+export const STRIPE_PERCENTAGE = 0.029  // 2.9%
+export const STRIPE_FIXED_FEE = 30      // $0.30 in cents
 
 export interface PricingRule {
   base_price: number      // cents
@@ -21,6 +33,11 @@ export interface PricingRule {
   public_notes?: string | null
 }
 
+export interface PricingOptions {
+  taxExempt?: boolean     // If true, skip tax calculation
+  includeProcessingFee?: boolean  // If true, add Stripe processing fee (default: true)
+}
+
 export interface PricingSnapshot {
   base_price: number
   delivery_fee: number
@@ -31,18 +48,39 @@ export interface PricingSnapshot {
   overage_per_ton: number
   rental_days: number
   extra_days: number
-  subtotal: number
-  total: number
+  extended_service_fee: number  // renamed from extra days cost for clarity
+  subtotal: number              // base + delivery + haul + extended_service
+  taxable_amount: number        // base_price only (rental is taxable)
+  tax_rate: number              // 0.07 for PA
+  tax_amount: number            // taxable_amount * tax_rate
+  processing_fee: number        // Stripe pass-through
+  total: number                 // subtotal + tax + processing_fee
   dumpster_size: number
   waste_type: string
   notes: string | null
+  tax_exempt: boolean           // whether tax was skipped
 }
+
+export type LineItemType =
+  | 'rental'            // TAXABLE - dumpster rental
+  | 'delivery'          // non-taxable
+  | 'haul'              // non-taxable (disposal fee)
+  | 'extended_service'  // non-taxable (extended service days)
+  | 'tax'               // the tax line
+  | 'processing_fee'    // card processing fee
+  | 'discount'          // discount
+  | 'adjustment'        // other adjustments
+  | 'overage'           // tonnage overage (charged separately)
+  // Legacy types for backward compatibility
+  | 'base'              // maps to 'rental'
+  | 'extra_days'        // maps to 'extended_service'
 
 export interface LineItem {
   label: string
   amount: number  // cents (can be negative for discounts)
-  type: 'base' | 'delivery' | 'haul' | 'extra_days' | 'tax' | 'discount' | 'adjustment'
+  type: LineItemType
   sort_order: number
+  taxable?: boolean  // helper for display
 }
 
 export interface PricingResult {
@@ -85,13 +123,17 @@ export function calculateRentalDays(dropoffDate: Date, pickupDate: Date): number
  * @param rule - The pricing rule to apply
  * @param dropoffDate - Date the dumpster will be dropped off
  * @param pickupDate - Date the dumpster will be picked up
+ * @param options - Optional settings (tax exempt, include processing fee)
  * @returns Pricing snapshot and line items
  */
 export function calculatePricing(
   rule: PricingRule,
   dropoffDate: Date,
-  pickupDate: Date
+  pickupDate: Date,
+  options: PricingOptions = {}
 ): PricingResult {
+  const { taxExempt = false, includeProcessingFee = true } = options
+
   // Validate dates
   if (pickupDate < dropoffDate) {
     throw new Error('Pickup date must be on or after dropoff date')
@@ -99,11 +141,24 @@ export function calculatePricing(
 
   const rentalDays = calculateRentalDays(dropoffDate, pickupDate)
   const extraDays = Math.max(0, rentalDays - rule.included_days)
-  const extraDaysCost = extraDays * rule.extra_day_fee
+  const extendedServiceFee = extraDays * rule.extra_day_fee
 
-  // Calculate totals
-  const subtotal = rule.base_price + rule.delivery_fee + rule.haul_fee + extraDaysCost
-  const total = subtotal // No tax for now
+  // Calculate subtotal (before tax and processing fee)
+  const subtotal = rule.base_price + rule.delivery_fee + rule.haul_fee + extendedServiceFee
+
+  // Tax calculation: Only rental (base_price) is taxable in PA
+  const taxableAmount = rule.base_price
+  const taxRate = taxExempt ? 0 : PA_TAX_RATE
+  const taxAmount = taxExempt ? 0 : Math.round(taxableAmount * PA_TAX_RATE)
+
+  // Processing fee: calculated on (subtotal + tax)
+  const preProcessingTotal = subtotal + taxAmount
+  const processingFee = includeProcessingFee
+    ? Math.round(preProcessingTotal * STRIPE_PERCENTAGE) + STRIPE_FIXED_FEE
+    : 0
+
+  // Final total
+  const total = subtotal + taxAmount + processingFee
 
   // Build snapshot (immutable record of pricing at this point in time)
   const snapshot: PricingSnapshot = {
@@ -116,52 +171,84 @@ export function calculatePricing(
     overage_per_ton: rule.overage_per_ton,
     rental_days: rentalDays,
     extra_days: extraDays,
+    extended_service_fee: extendedServiceFee,
     subtotal,
+    taxable_amount: taxableAmount,
+    tax_rate: taxRate,
+    tax_amount: taxAmount,
+    processing_fee: processingFee,
     total,
     dumpster_size: rule.dumpster_size,
     waste_type: rule.waste_type,
     notes: rule.public_notes ?? null,
+    tax_exempt: taxExempt,
   }
 
   // Build line items for display
   const lineItems: LineItem[] = []
   let sortOrder = 0
 
-  // Base price
+  // Rental (base price) - TAXABLE
   lineItems.push({
-    label: `${rule.dumpster_size} Yard Dumpster Rental`,
+    label: `${rule.dumpster_size} Yard Dumpster Rental (${rule.included_days} days included)`,
     amount: rule.base_price,
-    type: 'base',
+    type: 'rental',
     sort_order: sortOrder++,
+    taxable: true,
   })
 
-  // Delivery fee (if any)
+  // Delivery fee (if any) - non-taxable
   if (rule.delivery_fee > 0) {
     lineItems.push({
       label: 'Delivery Fee',
       amount: rule.delivery_fee,
       type: 'delivery',
       sort_order: sortOrder++,
+      taxable: false,
     })
   }
 
-  // Haul fee (if any)
+  // Haul/Disposal fee (if any) - non-taxable
   if (rule.haul_fee > 0) {
     lineItems.push({
-      label: 'Haul Away Fee',
+      label: 'Disposal Fee',
       amount: rule.haul_fee,
       type: 'haul',
       sort_order: sortOrder++,
+      taxable: false,
     })
   }
 
-  // Extra days (if any)
+  // Extended Service Days (if any) - non-taxable
+  // Important: Use "Extended Service Days" not "Extra Rental Days" for PA tax compliance
   if (extraDays > 0) {
     lineItems.push({
-      label: `Extra Days (${extraDays} day${extraDays > 1 ? 's' : ''} × $${(rule.extra_day_fee / 100).toFixed(2)})`,
-      amount: extraDaysCost,
-      type: 'extra_days',
+      label: `Extended Service Days (${extraDays} day${extraDays > 1 ? 's' : ''} @ $${(rule.extra_day_fee / 100).toFixed(2)})`,
+      amount: extendedServiceFee,
+      type: 'extended_service',
       sort_order: sortOrder++,
+      taxable: false,
+    })
+  }
+
+  // Tax line item (if not exempt)
+  if (!taxExempt && taxAmount > 0) {
+    lineItems.push({
+      label: `PA Sales Tax (7% on $${(taxableAmount / 100).toFixed(2)})`,
+      amount: taxAmount,
+      type: 'tax',
+      sort_order: sortOrder++,
+    })
+  }
+
+  // Processing fee (if included)
+  if (includeProcessingFee && processingFee > 0) {
+    lineItems.push({
+      label: 'Card Processing Fee',
+      amount: processingFee,
+      type: 'processing_fee',
+      sort_order: sortOrder++,
+      taxable: false,
     })
   }
 
@@ -170,19 +257,40 @@ export function calculatePricing(
 
 /**
  * Calculate overage charges based on actual tonnage.
+ * Overages are non-taxable (service fee charged separately after pickup).
  *
  * @param snapshot - The pricing snapshot from the original quote
  * @param actualTons - The actual weight in tons from the dump ticket
- * @returns The overage amount in cents (0 if within included tons)
+ * @param includeProcessingFee - Whether to include Stripe processing fee (default: true)
+ * @returns Object with overage amount, processing fee, and total
  */
 export function calculateOverage(
   snapshot: PricingSnapshot,
-  actualTons: number
-): number {
+  actualTons: number,
+  includeProcessingFee: boolean = true
+): { overageAmount: number; processingFee: number; total: number; overageTons: number } {
   const overageTons = Math.max(0, actualTons - snapshot.included_tons)
-  // Round up to nearest 0.01 ton, then calculate
-  const overageCents = Math.ceil(overageTons * snapshot.overage_per_ton)
-  return overageCents
+  // Round to nearest 0.01 ton, then calculate
+  const overageAmount = Math.round(overageTons * snapshot.overage_per_ton)
+
+  // Processing fee on overage (no tax since overages are non-taxable)
+  const processingFee = includeProcessingFee && overageAmount > 0
+    ? Math.round(overageAmount * STRIPE_PERCENTAGE) + STRIPE_FIXED_FEE
+    : 0
+
+  const total = overageAmount + processingFee
+
+  return { overageAmount, processingFee, total, overageTons }
+}
+
+/**
+ * Calculate processing fee for any amount
+ * @param amount - Amount in cents
+ * @returns Processing fee in cents
+ */
+export function calculateProcessingFee(amount: number): number {
+  if (amount <= 0) return 0
+  return Math.round(amount * STRIPE_PERCENTAGE) + STRIPE_FIXED_FEE
 }
 
 /**
