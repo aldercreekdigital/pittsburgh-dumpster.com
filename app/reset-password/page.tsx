@@ -13,7 +13,6 @@ export default function ResetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isBootstrapping, setIsBootstrapping] = useState(true)
-  const [hasRecoverySession, setHasRecoverySession] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
@@ -64,25 +63,24 @@ export default function ResetPasswordPage() {
         }
       }
 
-      const { data } = await supabase.auth.getSession()
+      await supabase.auth.getSession()
 
       if (!active) {
         return
       }
 
-      setHasRecoverySession(Boolean(data.session))
       setIsBootstrapping(false)
     }
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange((event) => {
       if (!active) {
         return
       }
 
       if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        setHasRecoverySession(Boolean(session))
+        setIsBootstrapping(false)
       }
     })
 
@@ -100,7 +98,6 @@ export default function ResetPasswordPage() {
   const canSubmit =
     !isSubmitting &&
     !isBootstrapping &&
-    hasRecoverySession &&
     password.length > 0 &&
     confirmPassword.length > 0 &&
     passwordsMatch &&
@@ -111,7 +108,12 @@ export default function ResetPasswordPage() {
     setError(null)
     setSuccess(null)
 
-    if (!hasRecoverySession) {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
+
+    if (userError || !user) {
       setError('Your recovery session is not active. Please request a new password reset link.')
       return
     }
